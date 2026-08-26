@@ -38,7 +38,7 @@ Use these exact public sources and revisions:
 
 | Component | Source | Revision |
 | --- | --- | --- |
-| Studio | `https://github.com/kujolang/workcell-studio.git` | `30e6db3966f60a8cea1d54ce7d78a052bc6c4152` / `v0.1.0-rc.1` |
+| Studio | `https://github.com/kujolang/workcell-studio.git` | immutable tag `v0.1.0-rc.2` |
 | Workcell | `https://github.com/kujolang/workcell.git` | `7bcdb7f29ddf74843aec6b70eafbf33cc7944c6f` |
 | Eval | `https://github.com/kujolang/eval.git` | `955713f487c094b20b7b8c44414ae17395194cc9` |
 | Kujo host runtime | GitHub release `v1.0.0`, Linux x64 | SHA-256 below |
@@ -204,12 +204,12 @@ git clone https://github.com/kujolang/workcell-studio.git /opt/workcell-studio
 git clone https://github.com/kujolang/workcell.git /opt/workcell
 git clone https://github.com/kujolang/eval.git /opt/eval
 
-git -C /opt/workcell-studio checkout --detach 30e6db3966f60a8cea1d54ce7d78a052bc6c4152
+git -C /opt/workcell-studio checkout --detach v0.1.0-rc.2
 git -C /opt/workcell checkout --detach 7bcdb7f29ddf74843aec6b70eafbf33cc7944c6f
 git -C /opt/eval checkout --detach 955713f487c094b20b7b8c44414ae17395194cc9
 
 test "$(git -C /opt/workcell-studio rev-parse HEAD)" = \
-  30e6db3966f60a8cea1d54ce7d78a052bc6c4152
+  "$(git -C /opt/workcell-studio rev-list -n 1 v0.1.0-rc.2)"
 test "$(git -C /opt/workcell rev-parse HEAD)" = \
   7bcdb7f29ddf74843aec6b70eafbf33cc7944c6f
 test "$(git -C /opt/eval rev-parse HEAD)" = \
@@ -239,7 +239,7 @@ KUJO_BIN=/usr/local/bin/kujo \
 Required results:
 
 - Pinned image prints `kujo 1.0.0`.
-- Twenty repository tests pass.
+- Twenty-one repository tests pass.
 - The real Workcell failure/repair smoke passes.
 - Kujo Eval passes eight checks and verifies its manifest.
 - ShipCheck reports zero errors. Its two Node-repository advisory warnings
