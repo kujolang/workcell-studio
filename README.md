@@ -86,6 +86,7 @@ npm test             # schemas, annotations, isolation, paths, patches, Kujo fix
 npm run smoke        # real Workcell failure → repair → Eval → manifest loop
 npm run eval         # Kujo Eval dogfood gate for this repository
 npm run shipcheck    # Kujo ShipCheck release-readiness gate
+npm run webmcp:smoke # real Chrome WebMCP protocol workflow (see docs/WEBMCP.md)
 npm run release      # complete repository-owned release gate
 ```
 

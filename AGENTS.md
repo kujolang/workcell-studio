@@ -37,6 +37,7 @@ npm run format
 npm run smoke
 npm run eval
 npm run shipcheck
+npm run webmcp:smoke
 npm run release
 ```
 

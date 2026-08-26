@@ -38,3 +38,18 @@ Server-sent events make successful tool effects visible in the human UI.
 Use Chrome's Model Context Tool Inspector and a WebMCP-capable ChatGPT browser
 to test selection, schema construction, error recovery, and the multi-tool
 repair loop. Deterministic registration/annotation tests run in `npm test`.
+
+## Chrome protocol smoke
+
+The repository also exercises the real browser registration and invocation
+path. Start Studio, then launch Chrome 149+ with the WebMCP testing feature and
+DevTools on port 9333, open `http://127.0.0.1:4173`, and run:
+
+```bash
+npm run webmcp:smoke
+```
+
+The scenario discovers all 16 tools through Chrome's WebMCP protocol, creates a
+project, reads it, inspects policy, observes the intended failed Eval, patches
+the bug, reruns Workcell and Eval, and verifies both manifests. On 2026-08-26,
+Chrome 151 completed this full scenario successfully.

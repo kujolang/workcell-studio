@@ -51,6 +51,15 @@ test("WebMCP Eval cancellation reaches the scoped server endpoint", async (t) =>
   assert.equal(calls[1].options.method, "POST");
 });
 
+test("WebMCP tools tolerate DevTools invocations without an execution context", async (t) => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ ok: true, status: "completed" }) });
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const tool = toolDefinitions.find(({ name }) => name === "get_run_status");
+  const output = await tool.execute({ project_id: `p_${"5".repeat(16)}`, run_id: `r_${"6".repeat(16)}` });
+  assert.equal(JSON.parse(output).status, "completed");
+});
+
 test("bounded tool output stays inside Chrome guidance", () => {
   assert.ok(bounded("x".repeat(3000)).length <= LIMITS.toolOutputChars);
 });
