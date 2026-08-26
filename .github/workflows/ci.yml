@@ -8,35 +8,35 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           path: workcell-studio
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: kujolang/kujo
           ref: v1.0.0
           path: kujo
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: kujolang/workcell
           ref: v1.0.0
           path: workcell
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: kujolang/eval
           ref: v1.0.0
           path: eval
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
       - uses: dtolnay/rust-toolchain@stable
       - name: Build pinned Kujo runtime
         run: cargo build --release --locked
         working-directory: kujo
+      - name: Add Kujo runtime to PATH
+        run: echo "$GITHUB_WORKSPACE/kujo/target/release" >> "$GITHUB_PATH"
       - run: npm test
         working-directory: workcell-studio
-        env:
-          PATH: ${{ github.workspace }}/kujo/target/release:${{ env.PATH }}
       - run: npm run lint
         working-directory: workcell-studio
       - run: npm run format
