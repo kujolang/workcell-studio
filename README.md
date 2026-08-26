@@ -91,7 +91,8 @@ npm run release      # complete repository-owned release gate
 ```
 
 See [architecture](docs/ARCHITECTURE.md), [security](docs/SECURITY.md),
-[WebMCP implementation](docs/WEBMCP.md), [deployment](docs/DEPLOYMENT.md), and
+[WebMCP implementation](docs/WEBMCP.md), [deployment](docs/DEPLOYMENT.md), the
+[production runbook](docs/DEPLOYMENT_RUNBOOK.md), and
 [hackathon disclosure](docs/HACKATHON.md).
 
 ## Challenge links

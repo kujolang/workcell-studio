@@ -1,5 +1,11 @@
 # Deployment
 
+For the complete operator and browser-agent procedure, follow
+[`DEPLOYMENT_RUNBOOK.md`](DEPLOYMENT_RUNBOOK.md). It pins the verified source
+revisions, identifies human approval checkpoints, and covers provisioning,
+DNS, TLS, origin-trial configuration, acceptance testing, rollback, and final
+submission handoff.
+
 Use a dedicated x86-64 Linux VM. A serverless function is not an honest deployment for
 Workcell because it requires a persistent Docker/Podman engine, Git workspaces,
 bounded child processes, evidence storage, cancellation, and cleanup.
