@@ -10,6 +10,7 @@ Group=workcell-studio
 SupplementaryGroups=docker
 WorkingDirectory=/opt/workcell
 Environment=KUJO=/usr/local/bin/kujo
+Environment=TMPDIR=/var/lib/workcell-studio
 ExecStart=/opt/workcell/bin/workcell clean --backend docker --json
 NoNewPrivileges=true
 ProtectSystem=strict

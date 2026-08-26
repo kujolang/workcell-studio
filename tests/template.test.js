@@ -14,6 +14,12 @@ test("container Kujo commit matches Workcell's required runtime", async () => {
   assert.match(dockerfile, new RegExp(`ARG KUJO_COMMIT=${required}`));
 });
 
+test("production cleanup targets the same Workcell temporary root as Studio", async () => {
+  const service = await fs.readFile(path.join(root, "deploy/workcell-studio-clean.service"), "utf8");
+  assert.match(service, /^Environment=TMPDIR=\/var\/lib\/workcell-studio$/m);
+  assert.match(service, /^ExecStart=\/opt\/workcell\/bin\/workcell clean --backend docker --json$/m);
+});
+
 test("human UI exposes every collaboration and recovery control", async () => {
   const html = await fs.readFile(path.join(root, "frontend/index.html"), "utf8");
   for (const control of ["run-button", "cancel-run", "eval-button", "cancel-eval", "eval-report", "diff-button", "export-button", "reset-button"]) assert.match(html, new RegExp(`id=\\"${control}\\"`));
