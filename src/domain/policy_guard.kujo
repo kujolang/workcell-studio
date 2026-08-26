@@ -1,0 +1,38 @@
+# Studio-owned Kujo policy guard. Workcell remains the enforcement engine;
+# this guard prevents public clients from selecting a broader definition.
+let cli_args := args()
+if len(cli_args) != 1 {
+    print(to_json({"ok": false, "error": "usage", "summary": "Expected one Workcell definition path."}))
+    exit(2)
+}
+
+let definition := parse_json(read_file(cli_args[0]))
+mut failures := []
+
+if definition["version"] != 1 { failures = push(failures, "definition version must be 1") }
+if definition["runtime"]["backend"] != "docker" { failures = push(failures, "runtime backend must be docker") }
+if definition["runtime"]["image"] != "kujolang/workcell-kujo:local" { failures = push(failures, "runtime image must be the prebuilt Studio image") }
+if definition["runtime"]["build_context"] != "" { failures = push(failures, "runtime builds are disabled") }
+if definition["workspace"]["strategy"] != "git-worktree" { failures = push(failures, "workspace strategy must be git-worktree") }
+if definition["workspace"]["mount_path"] != "/workspace" { failures = push(failures, "workspace mount must be /workspace") }
+if definition["workspace"]["run_as"] != "host" { failures = push(failures, "workspace identity must be host") }
+if definition["network"]["mode"] != "none" { failures = push(failures, "network must be none") }
+if definition["trust_profile"] != "contained-standard" { failures = push(failures, "trust profile must be contained-standard") }
+if definition["filesystem"]["read_only_root"] != true { failures = push(failures, "root filesystem must be read-only") }
+if definition["resources"]["cpus"] > 1 { failures = push(failures, "CPU limit exceeds public profile") }
+if definition["resources"]["memory"] != "256m" { failures = push(failures, "memory must be 256m") }
+if definition["resources"]["pids"] > 64 { failures = push(failures, "PID limit exceeds public profile") }
+if definition["resources"]["timeout_ms"] > 30000 { failures = push(failures, "timeout exceeds public profile") }
+if definition["resources"]["max_output_bytes"] > 65536 { failures = push(failures, "output limit exceeds public profile") }
+if len(definition["secrets"]) != 0 { failures = push(failures, "public projects cannot receive secrets") }
+if definition["cleanup"]["keep_failed"] != false { failures = push(failures, "failed workspaces cannot be retained") }
+
+let result := {
+    "ok": len(failures) == 0,
+    "contract": "workcell-studio-public-policy/v1",
+    "profile": "contained-standard",
+    "network": "none",
+    "failures": failures
+}
+print(to_json(result))
+if len(failures) > 0 { exit(1) }

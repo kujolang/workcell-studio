@@ -1,0 +1,49 @@
+# Invoice duplicate detector. Starter intentionally mishandles blank IDs.
+let cli_args := args()
+if len(cli_args) != 2 {
+    print("usage: kujo run main.kujo -- <input.csv> <report.json>")
+    exit(2)
+}
+
+let input_path := cli_args[0]
+let output_path := cli_args[1]
+let csv_rows := split(read_file(input_path), "\n")
+mut counts := {}
+mut invoices := []
+mut row_text := ""
+mut csv_fields := []
+mut current_id := ""
+mut invoice_row := {}
+
+for csv_row in csv_rows {
+    row_text = trim(csv_row)
+    if row_text != "" && row_text != "invoice_id,vendor,amount" {
+        csv_fields = split(row_text, ",")
+        if len(csv_fields) >= 3 {
+            current_id = trim(csv_fields[0])
+            invoice_row = {"invoice_id": current_id, "vendor": trim(csv_fields[1]), "amount": trim(csv_fields[2])}
+            invoices = push(invoices, invoice_row)
+            if has_key(counts, current_id) {
+                counts[current_id] := counts[current_id] + 1
+            } else {
+                counts[current_id] := 1
+            }
+        }
+    }
+}
+
+mut duplicates := []
+for invoice in invoices {
+    # Demo bug: blank invoice IDs should be ignored.
+    if counts[invoice["invoice_id"]] > 1 {
+        duplicates = push(duplicates, invoice)
+    }
+}
+
+let report := {
+    "source_rows": len(invoices),
+    "duplicate_count": len(duplicates),
+    "duplicates": duplicates
+}
+write_file(output_path, to_json_pretty(report), true)
+print(to_json({"ok": true, "duplicate_count": len(duplicates), "output": output_path}))

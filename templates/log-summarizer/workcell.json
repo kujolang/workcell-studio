@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "studio-log-summarizer",
+  "runtime": {"backend": "docker", "image": "kujolang/workcell-kujo:local", "build_context": ""},
+  "workspace": {"strategy": "git-worktree", "mount_path": "/workspace", "run_as": "host", "scan": {"max_files": 64, "max_bytes": 524288, "max_depth": 8}},
+  "command": ["kujo", "run", "main.kujo"],
+  "environment": {"allow": [], "set": {}}, "secrets": [],
+  "resources": {"cpus": 1, "memory": "256m", "pids": 64, "timeout_ms": 30000, "max_output_bytes": 65536},
+  "network": {"mode": "none", "egress": {"policy": "deny-by-default", "dns": "blocked", "proxy": "none", "enforcement_profile": "none"}},
+  "filesystem": {"read_only_root": true, "tmpfs": ["/tmp"]},
+  "artifacts": {"export": ["summary.json"], "max_bytes": 65536, "max_files": 1, "max_depth": 2, "allowed_extensions": [".json"], "secret_action": "reject"},
+  "verification": {"version": 1, "commands": [{"name": "summary-created", "command": ["sh", "-lc", "test -s summary.json"]}]},
+  "cleanup": {"keep_failed": false}, "trust_profile": "contained-standard", "receipt": {"path": ".workcell/runs"}
+}

@@ -1,0 +1,2 @@
+write_file("dist/index.html", "<!doctype html><title>System status</title><main><h1>All systems operational</h1></main>", true)
+print(to_json({"ok": true, "artifact": "dist/index.html"}))

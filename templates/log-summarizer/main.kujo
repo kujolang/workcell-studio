@@ -1,0 +1,7 @@
+let log_rows := split(read_file("fixtures.log"), "\n")
+let errors := 0
+for line in log_rows {
+    if contains(line, "ERROR") { errors = errors + 1 }
+}
+write_file("summary.json", to_json_pretty({"lines": len(log_rows), "errors": errors}), true)
+print(to_json({"ok": true, "errors": errors}))

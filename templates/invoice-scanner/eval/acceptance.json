@@ -1,0 +1,9 @@
+{
+  "name": "invoice-scanner-acceptance",
+  "description": "Expected deterministic outcome after the blank-ID bug is repaired.",
+  "version": "1.0.0",
+  "tests": [
+    {"name": "report exists", "check": "file_exists", "params": {"path": "report.json"}},
+    {"name": "two duplicate rows", "check": "json_value_equals", "params": {"path": "report.json", "json_path": "duplicate_count", "expected": 2}}
+  ]
+}

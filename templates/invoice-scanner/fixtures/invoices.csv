@@ -1,0 +1,7 @@
+invoice_id,vendor,amount
+INV-100,Northstar Paper,125.00
+INV-104,Blue Finch Supply,89.50
+,Unknown Vendor,15.00
+INV-102,Arc Works,245.10
+INV-104,Blue Finch Supply,89.50
+,Manual Review,19.25
