@@ -1,0 +1,17 @@
+{
+  "name": "workcell-studio-dogfood",
+  "description": "Deterministic repository and live-service acceptance checks.",
+  "version": "1.0.0",
+  "artifact_checksums": true,
+  "allowed_http_hosts": ["127.0.0.1:43174"],
+  "tests": [
+    {"name": "license exists", "check": "file_exists", "params": {"path": "LICENSE"}},
+    {"name": "WebMCP manifest exists", "check": "file_exists", "params": {"path": "webmcp/register-tools.js"}},
+    {"name": "current WebMCP API used", "check": "file_contains", "params": {"path": "webmcp/register-tools.js", "expected": "document.modelContext"}},
+    {"name": "canonical demo exists", "check": "file_exists", "params": {"path": "templates/invoice-scanner/workcell.json"}},
+    {"name": "hackathon disclosure exists", "check": "file_exists", "params": {"path": "docs/HACKATHON.md"}},
+    {"name": "security model exists", "check": "file_exists", "params": {"path": "docs/SECURITY.md"}},
+    {"name": "health endpoint responds", "check": "http_status", "params": {"url": "http://127.0.0.1:43174/api/health", "expected_status": 200}},
+    {"name": "readiness identifies real integrations", "check": "http_body_contains", "params": {"url": "http://127.0.0.1:43174/api/ready", "expected_status": 200, "expected": "\"workcell\":true"}}
+  ]
+}

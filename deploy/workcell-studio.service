@@ -1,0 +1,30 @@
+[Unit]
+Description=Kujo Workcell Studio
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=workcell-studio
+Group=workcell-studio
+WorkingDirectory=/opt/workcell-studio
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=4173
+Environment=STUDIO_DATA_ROOT=/var/lib/workcell-studio/data
+Environment=STUDIO_WORKCELL_TMP=/var/lib/workcell-studio
+Environment=KUJO_BIN=/usr/local/bin/kujo
+Environment=WORKCELL_BIN=/opt/workcell/bin/workcell
+Environment=EVAL_MAIN=/opt/eval/main.kujo
+ExecStart=/usr/bin/node src/server/main.js
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=45
+NoNewPrivileges=true
+PrivateTmp=false
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/workcell-studio
+
+[Install]
+WantedBy=multi-user.target
