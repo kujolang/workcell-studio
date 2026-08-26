@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="A WebMCP-native workspace for bounded, verified software collaboration.">
+  <title>Kujo Workcell Studio</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="mark">K</span><div><strong>KUJO</strong><small>WORKCELL STUDIO</small></div></div>
+    <div class="topmeta"><span id="webmcp-badge" class="badge neutral">WebMCP detecting</span><span class="project-label">PROJECT <b id="project-name">No active project</b></span></div>
+  </header>
+  <main>
+    <aside class="rail">
+      <section><div class="eyebrow">MISSION</div><h1 id="objective">Create a bounded workspace to begin.</h1><div class="status-row"><span>STATE</span><b id="project-status">EMPTY</b></div></section>
+      <section><div class="eyebrow">EXECUTION BOUNDARY</div><dl class="policy"><div><dt>Network</dt><dd>NONE</dd></div><div><dt>CPU</dt><dd>1 CORE</dd></div><div><dt>Memory</dt><dd>256 MB</dd></div><div><dt>Root FS</dt><dd>READ-ONLY</dd></div><div><dt>Workspace</dt><dd>DISPOSABLE</dd></div><div><dt>Artifacts</dt><dd>DECLARED</dd></div></dl><button id="inspect-policy" class="text-button">Inspect actual policy →</button></section>
+      <section><div class="eyebrow">FILES</div><nav id="file-list" class="files"><span class="muted">No workspace</span></nav></section>
+    </aside>
+    <section class="workspace">
+      <div class="workspace-head"><div><div class="eyebrow">SHARED WORKSPACE</div><h2 id="active-file">PROJECT OVERVIEW</h2></div><div class="actions"><button id="diff-button">View diff</button><button id="run-button" class="primary">Run Workcell</button></div></div>
+      <div id="empty-state" class="empty-state">
+        <span class="number">01</span><h2>Create the canonical invoice workcell</h2><p>A real Kujo project, executed by Workcell and checked by Eval. The starter includes a realistic blank-ID bug for the repair loop.</p>
+        <form id="create-form"><input name="name" value="Invoice Duplicate Detector" aria-label="Project name"><textarea name="objective" aria-label="Objective">Build a Kujo CLI utility that reads invoices from CSV, identifies duplicate invoice IDs, and writes a JSON report.</textarea><select name="template" aria-label="Template"><option value="invoice-scanner">Invoice scanner · canonical demo</option><option value="log-summarizer">Log summarizer</option><option value="static-status-page">Static status page</option></select><button class="primary" type="submit">Create isolated project</button></form>
+      </div>
+      <div id="editor" class="editor hidden"><div class="line-numbers" id="line-numbers"></div><textarea id="file-content" spellcheck="false" aria-label="File contents"></textarea><div class="editor-footer"><span id="file-note">Agent and human edits share this state.</span><button id="save-button">Save file</button></div></div>
+      <pre id="inspector" class="inspector hidden"></pre>
+    </section>
+    <aside class="evidence">
+      <div class="eyebrow">TRUST, SEPARATED</div>
+      <div class="claim" id="execution-claim"><span>EXECUTION</span><b>NOT RUN</b><small>Did the workload finish?</small></div>
+      <div class="claim" id="eval-claim"><span>EVALUATION</span><b>NOT RUN</b><small>Did deterministic checks pass?</small></div>
+      <div class="claim" id="evidence-claim"><span>EVIDENCE</span><b>NOT VERIFIED</b><small>Is the recorded manifest intact?</small></div>
+      <div class="run-panel"><div class="eyebrow">LATEST RUN</div><ol id="lifecycle"><li data-stage="preparing">Preparing</li><li data-stage="running">Executing</li><li data-stage="collecting">Collecting</li><li data-stage="verifying">Verifying</li><li data-stage="completed">Complete</li></ol><div id="run-summary" class="muted">No execution yet.</div><div class="actions vertical"><button id="inspect-run">Inspect evidence</button><button id="eval-button">Run Kujo Eval</button><button id="verify-button">Verify manifests</button></div></div>
+    </aside>
+  </main>
+  <section class="activity"><div class="activity-head"><div><div class="eyebrow">LIVE COLLABORATION</div><h2>Activity</h2></div><span>Human + browser agent · same application services</span></div><div id="activity-list" class="activity-list"><p class="muted">Project activity appears here in real time.</p></div></section>
+  <footer><span>WebMCP → Studio capabilities → Kujo Workcell → Kujo Eval → Evidence</span><strong>CLARITY · CONTEXT · CONTROL</strong></footer>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
