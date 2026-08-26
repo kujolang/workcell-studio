@@ -8,8 +8,10 @@ export const LIMITS = Object.freeze({
   toolOutputChars: 1500,
   sessionTtlMs: 2 * 60 * 60 * 1000,
   maxConcurrentRuns: 2,
+  evalTimeoutMs: 30 * 1000,
   maxProjectsPerSession: 5,
   maxSseConnections: 32,
+  maxRateLimitEntries: 4096,
 });
 
 export const PUBLIC_POLICY = Object.freeze({

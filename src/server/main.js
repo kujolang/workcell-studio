@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fsp from "node:fs/promises";
 import http from "node:http";
+import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { LIMITS } from "./limits.js";
@@ -22,10 +23,18 @@ const requestRates = new Map();
 let sseConnections = 0;
 
 function rateLimit(req, route) {
-  const address = req.socket.remoteAddress || "unknown";
+  let address = req.socket.remoteAddress || "unknown";
+  if (process.env.STUDIO_TRUST_PROXY === "loopback" && net.isIP(address) && (address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1")) {
+    const forwarded = String(req.headers["x-forwarded-for"] || "").split(",").map((item) => item.trim()).filter(Boolean).at(-1);
+    if (forwarded && net.isIP(forwarded)) address = forwarded;
+  }
   const windowMs = route === "create" ? 60 * 60 * 1000 : 60 * 1000;
   const limit = route === "create" ? 10 : 240;
   const key = `${address}:${route}`; const current = requestRates.get(key); const time = Date.now();
+  if (requestRates.size >= LIMITS.maxRateLimitEntries && !requestRates.has(key)) {
+    for (const [candidate, value] of requestRates) if (value.reset <= time) requestRates.delete(candidate);
+    if (requestRates.size >= LIMITS.maxRateLimitEntries) throw new StudioError("capacity", "Request tracking capacity is full. Retry shortly.", 429);
+  }
   if (!current || current.reset <= time) { requestRates.set(key, { count: 1, reset: time + windowMs }); return; }
   current.count += 1;
   if (current.count > limit) throw new StudioError("rate_limited", "Request capacity exceeded. Retry after the current window.", 429);
@@ -61,6 +70,7 @@ async function serveFile(res, target, download = false) {
 const server = http.createServer(async (req, res) => {
   const sid = session(req, res); const url = new URL(req.url, "http://studio.local"); const parts = url.pathname.split("/").filter(Boolean);
   try {
+    if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && req.headers["sec-fetch-site"] === "cross-site") throw new StudioError("cross_site_request", "Cross-site state changes are not accepted.", 403);
     rateLimit(req, url.pathname === "/api/projects" && req.method === "POST" ? "create" : "request");
     if (url.pathname === "/api/health") return send(res, 200, { ok: true, service: "kujo-workcell-studio" });
     if (url.pathname === "/api/ready") { const readiness = studio.readiness(); return send(res, readiness.ok ? 200 : 503, readiness); }
@@ -88,8 +98,9 @@ const server = http.createServer(async (req, res) => {
         const rid = parts[4];
         if (req.method === "GET" && !parts[5]) return send(res, 200, await studio.getRun(sid, pid, rid, url.searchParams.get("details") === "1"));
         if (parts[5] === "cancel" && req.method === "POST") return send(res, 202, await studio.cancelRun(sid, pid, rid));
-        if (parts[5] === "evals" && req.method === "POST" && !parts[6]) return send(res, 200, await studio.runEval(sid, pid, rid));
-        if (parts[5] === "evals" && parts[6] && req.method === "GET") return send(res, 200, await studio.getEval(sid, pid, rid, parts[6]));
+        if (parts[5] === "evals" && req.method === "POST" && !parts[6]) return send(res, 202, await studio.runEval(sid, pid, rid));
+        if (parts[5] === "evals" && parts[6] && req.method === "GET" && !parts[7]) return send(res, 200, await studio.getEval(sid, pid, rid, parts[6]));
+        if (parts[5] === "evals" && parts[6] && parts[7] === "cancel" && req.method === "POST") return send(res, 202, await studio.cancelEval(sid, pid, rid, parts[6]));
         if (parts[5] === "verify" && req.method === "POST") { const input = await body(req); return send(res, 200, await studio.verifyRun(sid, pid, rid, input.eval_id || null)); }
       }
       if (parts[3] === "exports" && req.method === "POST") return send(res, 200, await studio.exportProject(sid, pid));
@@ -104,6 +115,17 @@ const server = http.createServer(async (req, res) => {
 });
 
 const port = Number(process.env.PORT || 4173); const host = process.env.HOST || "127.0.0.1";
+server.headersTimeout = 10000;
+server.requestTimeout = 15000;
+server.keepAliveTimeout = 5000;
 server.listen(port, host, () => console.log(`Kujo Workcell Studio listening on http://${host}:${port}`));
 
-for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { for (const active of studio.active.values()) active.child.kill("SIGTERM"); server.close(() => process.exit(0)); });
+let shuttingDown = false;
+for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, async () => {
+  if (shuttingDown) return; shuttingDown = true;
+  for (const active of studio.active.values()) studio.terminate(active);
+  server.close();
+  const deadline = Date.now() + 3500;
+  while (studio.active.size && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 50));
+  process.exit(studio.active.size ? 1 : 0);
+});

@@ -14,16 +14,16 @@ Read-only tools: `get_studio_state`, `list_files`, `read_file`,
 `inspect_policy`, `get_run_status`, `inspect_run`, `get_eval_report`,
 `get_diff`, `verify_run`.
 
-Untrusted-content reads: `read_file`, `inspect_run`, `get_eval_report`,
-`get_diff`.
+Untrusted-content reads: `get_studio_state`, `list_files`, `read_file`,
+`inspect_run`, `get_eval_report`, `get_diff`.
 
 State-changing tools: `create_project`, `write_file`, `apply_patch`,
 `run_workcell`, `run_eval`, `reset_project`, `export_project`.
 
-Each execute callback passes its `AbortSignal` to fetch. `run_workcell` also
-registers an abort handler that calls the scoped cancellation endpoint after a
-run ID exists. Server-sent events make successful tool effects visible in the
-human UI.
+Each execute callback passes its `AbortSignal` to fetch. `run_workcell` and
+`run_eval` also register abort handlers that call scoped cancellation endpoints
+after opaque IDs exist. Both jobs return immediately and remain pollable.
+Server-sent events make successful tool effects visible in the human UI.
 
 ## Repeatable discovery prompts
 

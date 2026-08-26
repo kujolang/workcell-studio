@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -70,6 +69,8 @@ export class Studio {
     this.evalMain = evalMain;
     this.workcellTmp = process.env.STUDIO_WORKCELL_TMP || path.dirname(dataRoot);
     this.active = new Map();
+    this.creationLocks = new Set();
+    this.projectLocks = new Set();
     this.listeners = new Set();
   }
 
@@ -123,6 +124,33 @@ export class Studio {
     return meta;
   }
 
+  projectKey(sessionId, projectId) { return `${sessionId}:${projectId}`; }
+
+  projectIsBusy(sessionId, projectId) {
+    const key = this.projectKey(sessionId, projectId);
+    return this.projectLocks.has(key) || [...this.active.values()].some((job) => job.sessionId === sessionId && job.projectId === projectId);
+  }
+
+  lockProject(sessionId, projectId) {
+    const key = this.projectKey(sessionId, projectId);
+    if (this.projectIsBusy(sessionId, projectId)) throw new StudioError("project_busy", "This project already has an active mutation, execution, or Eval.", 409, ["get_studio_state"]);
+    this.projectLocks.add(key);
+    return () => this.projectLocks.delete(key);
+  }
+
+  reserveJob(jobId, kind, sessionId, projectId, extra = {}) {
+    if (this.active.size >= LIMITS.maxConcurrentRuns) throw new StudioError("capacity", "Studio is at its concurrent job limit. Retry shortly.", 429, ["get_studio_state"]);
+    if (this.projectIsBusy(sessionId, projectId)) throw new StudioError("project_busy", "This project already has an active mutation, execution, or Eval.", 409, ["get_studio_state"]);
+    this.active.set(jobId, { child: null, kind, sessionId, projectId, ...extra });
+  }
+
+  validateMutationPath(relative) {
+    if (typeof relative !== "string" || !SAFE_PATH.test(relative) || relative.includes("//") || relative.split("/").includes("..") || path.isAbsolute(relative) || relative.includes("\0") || relative.includes("\\")) {
+      throw new StudioError("invalid_patch", "Every patched path must be a normalized project-relative path.", 400);
+    }
+    if (PROTECTED_FILES.has(relative) || relative.split("/").includes(".git")) throw new StudioError("protected_file", "Patches cannot modify Studio policy or Git control files.", 403, ["inspect_policy"]);
+  }
+
   async safeFile(sessionId, projectId, relative, { allowMissing = false } = {}) {
     await this.requireProject(sessionId, projectId);
     if (typeof relative === "string" && relative.split("/").includes(".git")) throw new StudioError("protected_file", "Git control files are not exposed through project file capabilities.", 403);
@@ -149,7 +177,18 @@ export class Studio {
     return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
   }
 
-  async createProject(sessionId, { name, objective, template = "invoice-scanner" }) {
+  async createProject(sessionId, input) {
+    if (!input || typeof input !== "object" || Array.isArray(input)) throw new StudioError("invalid_input", "Project input must be a JSON object.", 400);
+    if (this.creationLocks.has(sessionId)) throw new StudioError("project_busy", "A project is already being created in this session.", 409);
+    this.creationLocks.add(sessionId);
+    try {
+      return await this.createProjectUnlocked(sessionId, input);
+    } finally {
+      this.creationLocks.delete(sessionId);
+    }
+  }
+
+  async createProjectUnlocked(sessionId, { name, objective, template = "invoice-scanner" }) {
     const templates = await this.listTemplates();
     if (!templates.includes(template)) throw new StudioError("invalid_template", `Choose one of: ${templates.join(", ")}.`, 400);
     const projectsRoot = path.join(this.sessionRoot(sessionId), "projects");
@@ -242,8 +281,9 @@ export class Studio {
     if (typeof content !== "string" || Buffer.byteLength(content) > LIMITS.fileBytes) throw new StudioError("file_too_large", `Writes are limited to ${LIMITS.fileBytes} bytes.`, 413);
     const target = await this.safeFile(sessionId, projectId, relative, { allowMissing: true });
     if (PROTECTED_FILES.has(relative) || relative.split("/").includes(".git")) throw new StudioError("protected_file", "Studio execution policy files are read-only through project mutation tools.", 403, ["inspect_policy"]);
-    await fsp.mkdir(path.dirname(target), { recursive: true, mode: 0o700 });
+    const unlock = this.lockProject(sessionId, projectId);
     try {
+      await fsp.mkdir(path.dirname(target), { recursive: true, mode: 0o700 });
       await fsp.writeFile(target, content, { encoding: "utf8", mode: 0o600 });
       await this.commitMutation(sessionId, projectId, `Update ${relative}`);
     } catch (error) {
@@ -251,6 +291,8 @@ export class Studio {
       spawnSync("git", ["reset", "--hard", "HEAD"], { cwd: repo, stdio: "ignore" });
       spawnSync("git", ["clean", "-fd"], { cwd: repo, stdio: "ignore" });
       throw error;
+    } finally {
+      unlock();
     }
     await this.activity(sessionId, projectId, actor, "write_file", `Updated ${relative}`);
     return { ok: true, path: relative, bytes: Buffer.byteLength(content), status: "needs_verification", suggested_tools: ["get_diff", "run_workcell"] };
@@ -263,16 +305,22 @@ export class Studio {
     if (patchPaths.some((candidate) => PROTECTED_FILES.has(candidate) || candidate.split("/").includes(".git"))) throw new StudioError("protected_file", "Patches cannot modify Studio policy or Git control files.", 403, ["inspect_policy"]);
     const repo = this.repoRoot(sessionId, projectId);
     await this.requireProject(sessionId, projectId);
-    const proc = spawnSync("git", ["apply", "--check", "--whitespace=error-all", "-"], { cwd: repo, input: patchText, encoding: "utf8", maxBuffer: LIMITS.patchBytes * 2 });
-    if (proc.status !== 0) throw new StudioError("patch_rejected", bounded(proc.stderr || "Patch did not apply cleanly."), 422, ["read_file", "get_diff"]);
-    const applied = spawnSync("git", ["apply", "--whitespace=error-all", "-"], { cwd: repo, input: patchText, encoding: "utf8", maxBuffer: LIMITS.patchBytes * 2 });
-    if (applied.status !== 0) throw new StudioError("patch_failed", bounded(applied.stderr), 422);
+    const unlock = this.lockProject(sessionId, projectId);
     try {
+      const proc = spawnSync("git", ["apply", "--check", "--whitespace=error-all", "-"], { cwd: repo, input: patchText, encoding: "utf8", maxBuffer: LIMITS.patchBytes * 2 });
+      if (proc.status !== 0) throw new StudioError("patch_rejected", bounded(proc.stderr || "Patch did not apply cleanly."), 422, ["read_file", "get_diff"]);
+      const applied = spawnSync("git", ["apply", "--whitespace=error-all", "-"], { cwd: repo, input: patchText, encoding: "utf8", maxBuffer: LIMITS.patchBytes * 2 });
+      if (applied.status !== 0) throw new StudioError("patch_failed", bounded(applied.stderr), 422);
+      const changed = spawnSync("git", ["ls-files", "-m", "-d", "-o", "--exclude-standard", "-z"], { cwd: repo, encoding: "utf8", maxBuffer: LIMITS.patchBytes * 2 });
+      if (changed.status !== 0) throw new StudioError("patch_failed", "Studio could not validate patched paths.", 422);
+      for (const candidate of changed.stdout.split("\0").filter(Boolean)) this.validateMutationPath(candidate);
       await this.commitMutation(sessionId, projectId, "Apply agent patch");
     } catch (error) {
       spawnSync("git", ["reset", "--hard", "HEAD"], { cwd: repo, stdio: "ignore" });
       spawnSync("git", ["clean", "-fd"], { cwd: repo, stdio: "ignore" });
       throw error;
+    } finally {
+      unlock();
     }
     await this.activity(sessionId, projectId, actor, "apply_patch", "Applied a targeted patch");
     return { ok: true, status: "needs_verification", suggested_tools: ["get_diff", "run_workcell"] };
@@ -290,13 +338,14 @@ export class Studio {
 
   async startRun(sessionId, projectId) {
     const meta = await this.requireProject(sessionId, projectId);
-    if (this.active.size >= LIMITS.maxConcurrentRuns) throw new StudioError("capacity", "Studio is at its concurrent run limit. Retry shortly.", 429, ["get_run_status"]);
+    const runId = id("r");
+    this.reserveJob(runId, "run", sessionId, projectId);
+    try {
     const repo = this.repoRoot(sessionId, projectId);
     await this.projectUsage(repo);
     const policy = await this.inspectPolicy(sessionId, projectId);
     if (!policy.ok) throw new StudioError("policy_rejected", "Project Workcell definition does not satisfy the fixed public profile.", 422, ["inspect_policy"]);
     if (run("git", ["status", "--porcelain"], { cwd: repo })) throw new StudioError("workspace_dirty", "Studio could not seal the workspace before execution.", 409);
-    const runId = id("r");
     const output = this.runRoot(sessionId, projectId, runId);
     await fsp.mkdir(output, { recursive: true, mode: 0o700 });
     const state = { id: runId, project_id: projectId, status: "preparing", started_at: now(), completed_at: null, exit_category: null, workload_exit_code: null, duration_ms: null, summary: "Workcell is preparing a disposable workspace." };
@@ -305,33 +354,48 @@ export class Studio {
     await writeJson(this.projectMeta(sessionId, projectId), meta);
     await this.activity(sessionId, projectId, "human_or_agent", "run_workcell", "Workcell run started", runId);
     const started = Date.now();
+    state.status = "running"; state.summary = "Workcell is executing inside the enforced boundary.";
+    await writeJson(path.join(output, "studio-run.json"), state);
     const child = spawn(this.workcellBin, ["run", "--file", path.join(repo, "workcell.json"), "--repo", repo, "--output", output, "--no-pull"], { cwd: repo, env: { ...process.env, KUJO: this.kujoBin, TMPDIR: this.workcellTmp }, stdio: ["ignore", "pipe", "pipe"] });
-    this.active.set(runId, { child, sessionId, projectId });
+    const active = { child, kind: "run", sessionId, projectId };
+    this.active.set(runId, active);
     let stdout = ""; let stderr = "";
     child.stdout.on("data", (chunk) => { stdout = bounded(stdout + chunk.toString(), LIMITS.logBytes); });
     child.stderr.on("data", (chunk) => { stderr = bounded(stderr + chunk.toString(), LIMITS.logBytes); });
+    child.on("error", (error) => { stderr = bounded(`${stderr}\n${error.message}`, LIMITS.logBytes); });
     child.on("close", async (code, signal) => {
-      this.active.delete(runId);
-      const entries = await fsp.readdir(output, { withFileTypes: true });
-      const evidenceEntry = entries.find((entry) => entry.isDirectory() && entry.name.startsWith("wc-"));
-      if (evidenceEntry) state.workcell_run_dir = evidenceEntry.name;
-      const evidenceRoot = evidenceEntry ? path.join(output, evidenceEntry.name) : output;
-      const receipt = await readJson(path.join(evidenceRoot, "receipt.json"), {});
-      state.status = signal ? "cancelled" : code === 0 ? "completed" : "failed";
-      state.completed_at = now(); state.duration_ms = Date.now() - started;
-      state.exit_category = signal ? "cancelled" : this.exitCategory(code);
-      state.workload_exit_code = receipt?.exit_code ?? null;
-      state.summary = signal ? "Run cancelled; Workcell cleanup was requested." : code === 0 ? "Execution succeeded; evidence collected." : `Workcell ended with ${state.exit_category}.`;
-      state.stdout = bounded(stdout, 1200); state.stderr = bounded(stderr, 1200);
-      await writeJson(path.join(output, "studio-run.json"), state);
-      const current = await this.requireProject(sessionId, projectId);
-      current.status = code === 0 ? "needs_verification" : "failed"; current.updated_at = now();
-      await writeJson(this.projectMeta(sessionId, projectId), current);
-      await this.activity(sessionId, projectId, "workcell", "run_complete", state.summary, runId);
-      this.emit({ type: "run", project_id: projectId, run_id: runId, session_id: sessionId });
+      try {
+        clearTimeout(active.killTimer);
+        const entries = await fsp.readdir(output, { withFileTypes: true });
+        const evidenceEntry = entries.find((entry) => entry.isDirectory() && entry.name.startsWith("wc-"));
+        if (evidenceEntry) state.workcell_run_dir = evidenceEntry.name;
+        const evidenceRoot = evidenceEntry ? path.join(output, evidenceEntry.name) : output;
+        const receipt = await readJson(path.join(evidenceRoot, "receipt.json"), {});
+        const cancelled = active.terminationReason === "cancelled";
+        state.status = cancelled ? "cancelled" : code === 0 ? "completed" : "failed";
+        state.completed_at = now(); state.duration_ms = Date.now() - started;
+        state.exit_category = cancelled ? "cancelled" : this.exitCategory(code);
+        state.workload_exit_code = receipt?.exit_code ?? null;
+        state.summary = cancelled ? "Run cancelled; Workcell cleanup was requested." : code === 0 ? "Execution succeeded; evidence collected." : `Workcell ended with ${state.exit_category}.`;
+        state.stdout = bounded(stdout, 1200); state.stderr = bounded(stderr, 1200);
+        await writeJson(path.join(output, "studio-run.json"), state);
+        const current = await this.requireProject(sessionId, projectId);
+        current.status = cancelled ? "cancelled" : code === 0 ? "needs_verification" : "failed"; current.updated_at = now();
+        await writeJson(this.projectMeta(sessionId, projectId), current);
+        await this.activity(sessionId, projectId, "workcell", "run_complete", state.summary, runId);
+        this.emit({ type: "run", project_id: projectId, run_id: runId, session_id: sessionId });
+      } catch (error) {
+        console.error("Workcell finalization failed", error);
+      } finally {
+        this.active.delete(runId);
+      }
     });
     this.emit({ type: "run", project_id: projectId, run_id: runId, session_id: sessionId });
-    return { ok: true, run_id: runId, status: "preparing", summary: state.summary, next_actions: ["get_run_status"] };
+    return { ok: true, run_id: runId, status: "running", summary: state.summary, next_actions: ["get_run_status"] };
+    } catch (error) {
+      this.active.delete(runId);
+      throw error;
+    }
   }
 
   exitCategory(code) { return ({ 0: "completed", 2: "definition_failure", 3: "workspace_failure", 4: "backend_failure", 5: "startup_failure", 6: "timeout", 7: "workload_failure", 8: "verification_failure", 9: "cleanup_failure", 10: "internal_failure" })[code] || "unknown_failure"; }
@@ -352,14 +416,26 @@ export class Studio {
     await this.getRun(sessionId, projectId, runId);
     const active = this.active.get(runId);
     if (!active || active.sessionId !== sessionId || active.projectId !== projectId) return { ok: true, run_id: runId, status: "not_running" };
-    active.child.kill("SIGTERM");
+    this.terminate(active);
     return { ok: true, run_id: runId, status: "cancelling" };
+  }
+
+  terminate(active, reason = "cancelled") {
+    if (!active?.child || active.child.exitCode !== null || active.child.signalCode) return;
+    active.terminationReason = reason;
+    active.child.kill("SIGTERM");
+    active.killTimer = setTimeout(() => {
+      if (active.child.exitCode === null && !active.child.signalCode) active.child.kill("SIGKILL");
+    }, 2000);
+    active.killTimer.unref();
   }
 
   async runEval(sessionId, projectId, runId) {
     const runState = await this.getRun(sessionId, projectId, runId);
     if (!runState.exit_category) throw new StudioError("run_in_progress", "Wait for Workcell to complete before evaluation.", 409, ["get_run_status"]);
     const evalId = id("e");
+    this.reserveJob(evalId, "eval", sessionId, projectId, { runId });
+    try {
     const runRoot = this.runRoot(sessionId, projectId, runId);
     const state = await readJson(path.join(runRoot, "studio-run.json"), {});
     const evidenceRoot = state.workcell_run_dir ? path.join(runRoot, state.workcell_run_dir) : runRoot;
@@ -383,13 +459,44 @@ export class Studio {
     const suite = { name: "workcell-studio-artifact-eval", description: `Deterministically verifies artifacts exported by the ${meta.template} Workcell.`, version: "1.0.0", output_dir: output, artifact_checksums: true, tests };
     const suitePath = path.join(output, "suite.json");
     await writeJson(suitePath, suite);
-    const result = spawnSync(this.kujoBin, ["run", this.evalMain, "run", suitePath, "--output-dir", output, "--artifact-checksums", "--json"], { cwd: this.root, encoding: "utf8", maxBuffer: LIMITS.logBytes * 4, timeout: 30000 });
-    const summary = await readJson(path.join(output, "summary.json"), {});
-    const normalized = { id: evalId, project_id: projectId, run_id: runId, status: result.status === 0 ? "passed" : "failed", passed: summary.passed ?? summary.passed_tests ?? 0, failed: summary.failed ?? summary.failed_tests ?? (result.status === 0 ? 0 : 1), skipped: summary.skipped ?? 0, duration_ms: summary.duration_ms ?? null, summary: result.status === 0 ? "Deterministic Eval checks passed." : "One or more deterministic Eval checks failed.", report_reference: path.relative(this.projectRoot(sessionId, projectId), path.join(output, "summary.json")), manifest_reference: path.relative(this.projectRoot(sessionId, projectId), path.join(output, "artifact-manifest.json")) };
+    const normalized = { id: evalId, project_id: projectId, run_id: runId, status: "running", passed: 0, failed: 0, skipped: 0, duration_ms: null, summary: "Kujo Eval is running deterministic artifact checks.", report_reference: path.relative(this.projectRoot(sessionId, projectId), path.join(output, "summary.json")), manifest_reference: path.relative(this.projectRoot(sessionId, projectId), path.join(output, "artifact-manifest.json")) };
     await writeJson(path.join(output, "studio-eval.json"), normalized);
-    meta.latest_eval_id = evalId; meta.status = normalized.status === "passed" ? "verified" : "failed"; meta.updated_at = now(); await writeJson(this.projectMeta(sessionId, projectId), meta);
-    await this.activity(sessionId, projectId, "eval", "run_eval", normalized.summary, runId); this.emit({ type: "eval", project_id: projectId, run_id: runId, session_id: sessionId });
-    return { ok: result.status === 0, eval_id: evalId, run_id: runId, status: normalized.status, passed: normalized.passed, failed: normalized.failed, summary: normalized.summary, next_actions: result.status === 0 ? ["verify_run"] : ["get_eval_report", "read_file", "apply_patch"] };
+    meta.latest_eval_id = evalId; meta.status = "verifying"; meta.updated_at = now(); await writeJson(this.projectMeta(sessionId, projectId), meta);
+    const started = Date.now();
+    const child = spawn(this.kujoBin, ["run", this.evalMain, "run", suitePath, "--output-dir", output, "--artifact-checksums", "--json"], { cwd: this.root, stdio: ["ignore", "pipe", "pipe"] });
+    const active = { child, kind: "eval", sessionId, projectId, runId };
+    this.active.set(evalId, active);
+    let stdout = ""; let stderr = "";
+    child.stdout.on("data", (chunk) => { stdout = bounded(stdout + chunk.toString(), LIMITS.logBytes); });
+    child.stderr.on("data", (chunk) => { stderr = bounded(stderr + chunk.toString(), LIMITS.logBytes); });
+    child.on("error", (error) => { stderr = bounded(`${stderr}\n${error.message}`, LIMITS.logBytes); });
+    const timeout = setTimeout(() => this.terminate(active, "timeout"), LIMITS.evalTimeoutMs); timeout.unref();
+    child.on("close", async (code, signal) => {
+      try {
+        clearTimeout(timeout); clearTimeout(active.killTimer);
+        const summary = await readJson(path.join(output, "summary.json"), {});
+        normalized.status = active.terminationReason === "cancelled" ? "cancelled" : code === 0 ? "passed" : "failed";
+        normalized.passed = summary.passed ?? summary.passed_tests ?? 0;
+        normalized.failed = summary.failed ?? summary.failed_tests ?? (code === 0 ? 0 : 1);
+        normalized.skipped = summary.skipped ?? 0; normalized.duration_ms = summary.duration_ms ?? Date.now() - started;
+        normalized.summary = active.terminationReason === "timeout" ? "Eval exceeded its 30-second limit and was stopped." : active.terminationReason === "cancelled" ? "Eval cancelled; the evaluator process was stopped." : code === 0 ? "Deterministic Eval checks passed." : "One or more deterministic Eval checks failed.";
+        normalized.stdout = bounded(stdout, 600); normalized.stderr = bounded(stderr, 600);
+        await writeJson(path.join(output, "studio-eval.json"), normalized);
+        const current = await this.requireProject(sessionId, projectId);
+        current.status = normalized.status === "passed" ? "verified" : normalized.status; current.updated_at = now(); await writeJson(this.projectMeta(sessionId, projectId), current);
+        await this.activity(sessionId, projectId, "eval", "run_eval", normalized.summary, runId); this.emit({ type: "eval", project_id: projectId, run_id: runId, eval_id: evalId, session_id: sessionId });
+      } catch (error) {
+        console.error("Eval finalization failed", error);
+      } finally {
+        this.active.delete(evalId);
+      }
+    });
+    this.emit({ type: "eval", project_id: projectId, run_id: runId, eval_id: evalId, session_id: sessionId });
+    return { ok: true, eval_id: evalId, run_id: runId, status: "running", summary: normalized.summary, next_actions: ["get_eval_report"] };
+    } catch (error) {
+      this.active.delete(evalId);
+      throw error;
+    }
   }
 
   async getEval(sessionId, projectId, runId, evalId) {
@@ -400,6 +507,14 @@ export class Studio {
     const failures = await readJson(path.join(output, "last_failures.json"), []);
     const safeFailures = sanitizeEvidence(Array.isArray(failures) ? failures.slice(0, 8) : failures, [[this.projectRoot(sessionId, projectId), "[project]"], [this.dataRoot, "[studio-data]"]]);
     return { ok: true, report, failures: safeFailures, content_is_untrusted: true };
+  }
+
+  async cancelEval(sessionId, projectId, runId, evalId) {
+    await this.getEval(sessionId, projectId, runId, evalId);
+    const active = this.active.get(evalId);
+    if (!active || active.kind !== "eval" || active.sessionId !== sessionId || active.projectId !== projectId || active.runId !== runId) return { ok: true, eval_id: evalId, status: "not_running" };
+    this.terminate(active);
+    return { ok: true, eval_id: evalId, status: "cancelling" };
   }
 
   async verifyRun(sessionId, projectId, runId, evalId = null) {
@@ -430,18 +545,29 @@ export class Studio {
   async resetProject(sessionId, projectId, confirmed = false) {
     if (confirmed !== true) throw new StudioError("confirmation_required", "Reset confirmation is required because this permanently discards project changes; retry with confirm=true.", 409);
     const meta = await this.requireProject(sessionId, projectId); const repo = this.repoRoot(sessionId, projectId);
-    run("git", ["reset", "--hard", meta.initial_commit], { cwd: repo });
-    run("git", ["clean", "-fd"], { cwd: repo });
-    meta.status = "needs_verification"; meta.latest_run_id = null; meta.latest_eval_id = null; meta.updated_at = now(); await writeJson(this.projectMeta(sessionId, projectId), meta);
+    const unlock = this.lockProject(sessionId, projectId);
+    try {
+      run("git", ["reset", "--hard", meta.initial_commit], { cwd: repo });
+      run("git", ["clean", "-fd"], { cwd: repo });
+      meta.status = "needs_verification"; meta.latest_run_id = null; meta.latest_eval_id = null; meta.updated_at = now(); await writeJson(this.projectMeta(sessionId, projectId), meta);
+    } finally {
+      unlock();
+    }
     await this.activity(sessionId, projectId, "human_or_agent", "reset_project", "Reset project to its verified template"); this.emit({ type: "workspace", project_id: projectId, session_id: sessionId });
     return { ok: true, project_id: projectId, status: meta.status };
   }
 
   async exportProject(sessionId, projectId) {
     const meta = await this.requireProject(sessionId, projectId); const repo = this.repoRoot(sessionId, projectId);
-    const exportDir = path.join(this.projectRoot(sessionId, projectId), "exports"); await fsp.mkdir(exportDir, { recursive: true, mode: 0o700 });
-    const name = `${projectId}.tar.gz`; const target = path.join(exportDir, name);
-    run("git", ["archive", "--format=tar.gz", "-o", target, "HEAD"], { cwd: repo });
+    const unlock = this.lockProject(sessionId, projectId);
+    const name = `${projectId}.tar.gz`;
+    try {
+      const exportDir = path.join(this.projectRoot(sessionId, projectId), "exports"); await fsp.mkdir(exportDir, { recursive: true, mode: 0o700 });
+      const target = path.join(exportDir, name);
+      run("git", ["archive", "--format=tar.gz", "-o", target, "HEAD"], { cwd: repo });
+    } finally {
+      unlock();
+    }
     await this.activity(sessionId, projectId, "human_or_agent", "export_project", "Exported sealed project source");
     return { ok: true, project_id: meta.id, download_url: `/api/projects/${projectId}/exports/${name}` };
   }
@@ -464,7 +590,7 @@ export class Studio {
     const sessions = path.join(this.dataRoot, "sessions"); if (!(await exists(sessions))) return;
     const cutoff = Date.now() - LIMITS.sessionTtlMs;
     for (const entry of await fsp.readdir(sessions, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue; const full = path.join(sessions, entry.name); const stat = await fsp.stat(full);
+      if (!entry.isDirectory() || [...this.active.values()].some((job) => job.sessionId === entry.name) || [...this.projectLocks].some((key) => key.startsWith(`${entry.name}:`))) continue; const full = path.join(sessions, entry.name); const stat = await fsp.stat(full);
       if (stat.mtimeMs < cutoff) await fsp.rm(full, { recursive: true, force: true });
     }
   }

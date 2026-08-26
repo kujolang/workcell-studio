@@ -1,7 +1,7 @@
 const api = async (url, options = {}) => {
   const response = await fetch(url, { credentials: "same-origin", ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
   const result = await response.json();
-  window.dispatchEvent(new CustomEvent("studio:changed", { detail: result }));
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("studio:changed", { detail: result }));
   if (!response.ok) throw new Error(JSON.stringify(result));
   const text = JSON.stringify(result);
   return text.length <= 1500 ? text : `${text.slice(0, 1460)}…truncated`;
@@ -14,6 +14,10 @@ const idField = { type: "string", pattern: "^p_[a-f0-9]{16}$", description: "Opa
 const runField = { type: "string", pattern: "^r_[a-f0-9]{16}$", description: "Opaque Workcell run ID." };
 const evalField = { type: "string", pattern: "^e_[a-f0-9]{16}$", description: "Opaque Eval report ID." };
 const pathField = { type: "string", maxLength: 240, description: "Normalized project-relative file path." };
+const cancelOnAbort = (signal, url) => {
+  const cancel = () => fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
+  if (signal?.aborted) cancel(); else signal?.addEventListener("abort", cancel, { once: true });
+};
 
 export const toolDefinitions = [
   { name: "get_studio_state", description: "Get the active project, workspace, policy, latest run, Eval, and activity snapshot.", inputSchema: object({ project_id: idField }), annotations: { readOnlyHint: true, untrustedContentHint: true }, execute: (x, { signal }) => api(`/api/state${project(x) ? `?project_id=${encodeURIComponent(project(x))}` : ""}`, { signal }) },
@@ -25,12 +29,16 @@ export const toolDefinitions = [
   { name: "inspect_policy", description: "Inspect the enforced public-demo Workcell boundary and definition validation status.", inputSchema: object({ project_id: idField }, ["project_id"]), annotations: { readOnlyHint: true }, execute: (x, { signal }) => api(`/api/projects/${project(x)}/policy`, { signal }) },
   { name: "run_workcell", description: "Start bounded execution in a disposable Kujo Workcell and return a run ID for polling.", inputSchema: object({ project_id: idField }, ["project_id"]), annotations: { readOnlyHint: false }, execute: async (x, { signal }) => {
     const raw = await api(`/api/projects/${project(x)}/runs`, { method: "POST", body: "{}", signal });
-    const result = JSON.parse(raw); signal?.addEventListener("abort", () => fetch(`/api/projects/${project(x)}/runs/${result.run_id}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }), { once: true });
+    const result = JSON.parse(raw); cancelOnAbort(signal, `/api/projects/${project(x)}/runs/${result.run_id}/cancel`);
     return raw;
   } },
   { name: "get_run_status", description: "Poll concise lifecycle status for a Workcell run.", inputSchema: object({ project_id: idField, run_id: runField }, ["project_id", "run_id"]), annotations: { readOnlyHint: true }, execute: (x, { signal }) => api(`/api/projects/${project(x)}/runs/${x.run_id}`, { signal }) },
   { name: "inspect_run", description: "Inspect bounded untrusted Workcell logs, receipt summary, changes, and cleanup evidence.", inputSchema: object({ project_id: idField, run_id: runField }, ["project_id", "run_id"]), annotations: { readOnlyHint: true, untrustedContentHint: true }, execute: (x, { signal }) => api(`/api/projects/${project(x)}/runs/${x.run_id}?details=1`, { signal }) },
-  { name: "run_eval", description: "Run deterministic Kujo Eval checks against artifacts exported by a completed Workcell.", inputSchema: object({ project_id: idField, run_id: runField }, ["project_id", "run_id"]), annotations: { readOnlyHint: false }, execute: (x, { signal }) => api(`/api/projects/${project(x)}/runs/${x.run_id}/evals`, { method: "POST", body: "{}", signal }) },
+  { name: "run_eval", description: "Start deterministic Kujo Eval checks and return an Eval ID for polling.", inputSchema: object({ project_id: idField, run_id: runField }, ["project_id", "run_id"]), annotations: { readOnlyHint: false }, execute: async (x, { signal }) => {
+    const raw = await api(`/api/projects/${project(x)}/runs/${x.run_id}/evals`, { method: "POST", body: "{}", signal });
+    const result = JSON.parse(raw); cancelOnAbort(signal, `/api/projects/${project(x)}/runs/${x.run_id}/evals/${result.eval_id}/cancel`);
+    return raw;
+  } },
   { name: "get_eval_report", description: "Inspect a bounded untrusted Kujo Eval summary and failure list.", inputSchema: object({ project_id: idField, run_id: runField, eval_id: evalField }, ["project_id", "run_id", "eval_id"]), annotations: { readOnlyHint: true, untrustedContentHint: true }, execute: (x, { signal }) => api(`/api/projects/${project(x)}/runs/${x.run_id}/evals/${x.eval_id}`, { signal }) },
   { name: "get_diff", description: "Review the bounded project diff since template creation.", inputSchema: object({ project_id: idField }, ["project_id"]), annotations: { readOnlyHint: true, untrustedContentHint: true }, execute: (x, { signal }) => api(`/api/projects/${project(x)}/diff`, { signal }) },
   { name: "verify_run", description: "Verify Workcell evidence integrity and optionally the Kujo Eval artifact manifest.", inputSchema: object({ project_id: idField, run_id: runField, eval_id: evalField }, ["project_id", "run_id"]), annotations: { readOnlyHint: true }, execute: (x, { signal }) => api(`/api/projects/${project(x)}/runs/${x.run_id}/verify`, { method: "POST", body: jsonBody({ eval_id: x.eval_id || null }), signal }) },

@@ -29,8 +29,9 @@ session has a random HttpOnly cookie and a private data root. Project, run, and
 Eval IDs are opaque. Workspaces are Git repositories because Workcell requires
 a clean source and uses Git to produce change evidence.
 
-Runs start asynchronously and return an ID. The Node boundary owns HTTP,
-streaming, process lifetime, and cancellation. Kujo owns the public-profile
+Workcell runs and Eval jobs start asynchronously and return IDs. The Node
+boundary owns HTTP, streaming, process lifetime, timeout, and cancellation.
+Kujo owns the public-profile
 policy guard and project workloads. Workcell owns definition validation,
 disposable workspace creation, container policy, execution, collection,
 verification, export, receipts, manifests, and cleanup. Eval owns deterministic
