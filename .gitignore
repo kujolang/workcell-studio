@@ -1,0 +1,6 @@
+.studio-data/
+.eval-results/
+node_modules/
+coverage/
+.DS_Store
+*.log

@@ -1,0 +1,7 @@
+[package]
+name = "workcell-studio"
+version = "0.1.0"
+description = "WebMCP-native bounded software collaboration studio"
+
+[runtime]
+version = "1.0.0"

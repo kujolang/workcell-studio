@@ -1,0 +1,36 @@
+name: "Kujo Workcell Studio challenge release"
+goal: "Ship a WebMCP-native workbench where humans and browser agents modify and verify software through bounded Kujo Workcells."
+version: "0.1.0"
+priority: "high"
+status: "in-progress"
+scope: "Shared human and WebMCP capability surface, actual Workcell execution and evidence, actual Kujo Eval verification, public-demo isolation, and challenge documentation."
+non_goals:
+  - "Accounts, billing, arbitrary languages, or generalized orchestration"
+acceptance_criteria:
+  - "Canonical project runs in actual Workcell"
+  - "Initial Eval fails and repaired project passes"
+  - "Workcell and Eval manifests verify"
+  - "Path, session, size, schema, annotation, and cancellation boundaries are tested"
+eval_requirements:
+  - description: "Repository tests pass"
+    check_type: "command_succeeds"
+    params:
+      command: "npm test"
+  - description: "WebMCP manifest exists"
+    check_type: "file_exists"
+    params:
+      path: "webmcp/register-tools.js"
+  - description: "Canonical Workcell definition exists"
+    check_type: "file_exists"
+    params:
+      path: "templates/invoice-scanner/workcell.json"
+risks:
+  - risk: "Container isolation trusts the deployment host and daemon"
+    severity: "high"
+    mitigation: "Use a dedicated VM and preferably rootless Docker; document the residual boundary."
+  - risk: "A public URL and real browser-agent verification require target infrastructure"
+    severity: "high"
+    mitigation: "Complete target-host and browser verification before submission."
+human_approval_points:
+  - "Public deployment and origin-trial configuration"
+  - "Final video and Devpost submission"
