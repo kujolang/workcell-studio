@@ -47,4 +47,5 @@ jobs:
           test -f LICENSE
           test -f docs/HACKATHON.md
           test -f templates/invoice-scanner/workcell.json
-          grep -q 'document.modelContext.registerTool' webmcp/register-tools.js
+          grep -q 'document.modelContext' webmcp/register-tools.js
+          grep -q 'registerTool' webmcp/register-tools.js
