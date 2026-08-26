@@ -11,7 +11,8 @@
     "format": "node scripts/check-format.js",
     "smoke": "bash scripts/smoke.sh",
     "eval": "bash scripts/eval-studio.sh",
-    "shipcheck": "bash scripts/shipcheck.sh"
+    "shipcheck": "bash scripts/shipcheck.sh",
+    "release": "bash scripts/release-gate.sh"
   },
   "engines": {"node": ">=20"},
   "license": "MIT"

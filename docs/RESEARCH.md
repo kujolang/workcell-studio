@@ -1,6 +1,6 @@
 # Research record
 
-Research date: 2026-08-25. Local repository heads were compared with their
+Research date: 2026-08-26. Local repository heads were compared with their
 GitHub `main` branch heads and matched at research time.
 
 ## WebMCP and challenge
@@ -35,7 +35,7 @@ Primary sources:
 
 | Repository | Current release/head researched | Actual role and commands | Decision |
 | --- | --- | --- | --- |
-| `kujo` | 1.0.1 docs; local runtime 1.0.0; `fc0f8bb` | Language runtime with filesystem, process, HTTP, SQLite, capability flags. `kujo run`, `kujo test`, `kujo check`. | Required. Runs Studio policy guard, templates, Eval, and Workcell. |
+| `kujo` | 1.0.1 repository docs; Workcell 1.0.0 requires Kujo commit `2b3e07d` | Language runtime with filesystem, process, HTTP, SQLite, capability flags. `kujo run`, `kujo test`, `kujo check`. | Required. The Studio container pins Workcell's exact required commit and CI tests that contract. |
 | `workcell` | 1.0.0; `7bcdb7f` | Docker/Podman harness. `validate`, `inspect`, `run`, `verify`, `clean`, `doctor`. Disposable clean Git workspace, resources, network policy, declared exports, receipts/manifests. | Required execution engine. No replacement sandbox. |
 | `eval` | product docs 1.0.0, CLI contract 2.0.0; `955713f` | Deterministic JSON suites: `run`, `report`, `compare`, `lint`, `verify-manifest`. It is not a sandbox. | Required. Run only against Workcell-exported artifacts. |
 | `spec` | 1.0.0; `d510334` | Reviewable task contracts and exports; does not execute. `validate`, `render`, `export-eval`, `ci`. | Useful for repository acceptance contract, not needed in the live loop. |
@@ -55,5 +55,8 @@ The public profile uses only documented definition v1 fields. Workcell is a
 bounded container workflow, not protection from a compromised host kernel or
 daemon and not a hosted multi-tenant scheduler.
 
-The selected deployment is a dedicated Linux VM with a private, preferably
-rootless Docker daemon. Serverless platforms cannot honestly host this runtime.
+The selected submission deployment is a disposable dedicated Linux VM with a
+private rootful Docker daemon and `workspace.run_as: host`, matching the sealed
+demo definitions. Rootless Docker is supported by Workcell only when definitions
+use `workspace.run_as: rootless`; Studio does not silently rewrite that security
+contract. Serverless platforms cannot honestly host this runtime.

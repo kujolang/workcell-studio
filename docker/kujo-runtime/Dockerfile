@@ -1,14 +1,18 @@
-FROM rust:1.96.0-alpine3.22@sha256:8c6ab6493f2e93ee7c21781bc599a7e07278aceb15fefb968144d7e4cf8c9a04 AS builder
-ARG KUJO_COMMIT=fc0f8bb890d9fbf4fb0a3bb456e1cd2b044fd7a3
-RUN apk add --no-cache git musl-dev openssl-dev pkgconfig \
- && git clone https://github.com/kujolang/kujo.git /src/kujo \
- && cd /src/kujo \
- && git checkout "$KUJO_COMMIT" \
- && cargo build --release --locked --no-default-features
-
-FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
-RUN addgroup -g 65532 workcell && adduser -D -u 65532 -G workcell workcell
-COPY --from=builder /src/kujo/target/release/kujo /usr/local/bin/kujo
+FROM debian:trixie-slim@sha256:abc9cb88a5587630d7f915f47b23b0668fe250fbfc6457aa4d52b534c1bbf73f
+ARG KUJO_VERSION=1.0.0
+ARG KUJO_COMMIT=2b3e07d398016e92008d8399e79c441e012dce38
+LABEL org.opencontainers.image.source="https://github.com/kujolang/kujo" \
+      org.opencontainers.image.revision="$KUJO_COMMIT" \
+      org.opencontainers.image.version="$KUJO_VERSION"
+ADD --checksum=sha256:77398f60d0f9d29b7ae1351ea234ba7a56ccc1ce6802e2891d7ff0572ac2e52f \
+    https://github.com/kujolang/kujo/releases/download/v1.0.0/kujo-v1.0.0-linux-x64.tar.gz \
+    /tmp/kujo.tar.gz
+RUN tar -xzf /tmp/kujo.tar.gz -C /usr/local/bin kujo \
+ && chmod 0755 /usr/local/bin/kujo \
+ && /usr/local/bin/kujo --version \
+ && rm /tmp/kujo.tar.gz
+RUN groupadd --gid 65532 workcell \
+ && useradd --uid 65532 --gid 65532 --no-create-home --shell /usr/sbin/nologin workcell
 WORKDIR /workspace
 USER 65532:65532
 CMD ["kujo", "--version"]

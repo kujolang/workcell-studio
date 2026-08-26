@@ -32,7 +32,7 @@ The browser uses the current Imperative API,
 `document.modelContext.registerTool`, with strict JSON Schemas, explicit
 read-only and untrusted-content annotations, compact outputs, shared UI/API
 services, and AbortSignal propagation. Long Workcell operations return a run
-ID and are polled; cancellation reaches the Workcell coordinator.
+ID and are polled; cancellation reaches the scoped Workcell and Eval processes.
 
 ## Submission checklist
 
@@ -43,3 +43,6 @@ ID and are polled; cancellation reaches the Workcell coordinator.
 - [ ] Add video URL to README and Devpost.
 - [ ] Confirm repository is public and GitHub detects MIT license.
 - [ ] Re-check official rules immediately before submission.
+
+These unchecked items require the submitter's deployment, browser/account, or
+recording access. `./scripts/release-gate.sh` covers the repository-owned gates.

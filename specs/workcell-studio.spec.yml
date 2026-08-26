@@ -27,7 +27,7 @@ eval_requirements:
 risks:
   - risk: "Container isolation trusts the deployment host and daemon"
     severity: "high"
-    mitigation: "Use a dedicated VM and preferably rootless Docker; document the residual boundary."
+    mitigation: "Use a dedicated disposable VM with the tested rootful run-as-host profile; stronger tenancy requires a separately tested profile."
   - risk: "A public URL and real browser-agent verification require target infrastructure"
     severity: "high"
     mitigation: "Complete target-host and browser verification before submission."

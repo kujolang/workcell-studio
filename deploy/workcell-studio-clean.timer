@@ -1,0 +1,11 @@
+[Unit]
+Description=Schedule Kujo Workcell Studio cleanup
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+RandomizedDelaySec=60
+Persistent=true
+
+[Install]
+WantedBy=timers.target

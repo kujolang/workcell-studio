@@ -1,4 +1,4 @@
-# Invoice duplicate detector. Starter intentionally mishandles blank IDs.
+# Invoice duplicate detector starter implementation.
 let cli_args := args()
 if len(cli_args) != 2 {
     print("usage: kujo run main.kujo -- <input.csv> <report.json>")
@@ -34,7 +34,7 @@ for csv_row in csv_rows {
 
 mut duplicates := []
 for invoice in invoices {
-    # Demo bug: blank invoice IDs should be ignored.
+    # Include invoice rows whose identifiers occur more than once.
     if counts[invoice["invoice_id"]] > 1 {
         duplicates = push(duplicates, invoice)
     }

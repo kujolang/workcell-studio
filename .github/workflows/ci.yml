@@ -2,34 +2,43 @@ name: CI
 on:
   push:
   pull_request:
+concurrency:
+  group: workcell-studio-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           path: workcell-studio
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: kujolang/kujo
           ref: v1.0.0
           path: kujo
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: kujolang/workcell
           ref: v1.0.0
           path: workcell
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: kujolang/eval
           ref: v1.0.0
           path: eval
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: kujolang/shipcheck
+          ref: v1.0.0
+          path: shipcheck
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable 2026-08-26
       - name: Build pinned Kujo runtime
         run: cargo build --release --locked
         working-directory: kujo
@@ -40,6 +49,18 @@ jobs:
       - run: npm run lint
         working-directory: workcell-studio
       - run: npm run format
+        working-directory: workcell-studio
+      - name: Build checksum-pinned Workcell runtime image
+        run: docker build --tag kujolang/workcell-kujo:local docker/kujo-runtime
+        working-directory: workcell-studio
+      - name: Run real failure-repair-verification smoke
+        run: npm run smoke
+        working-directory: workcell-studio
+      - name: Dogfood Kujo Eval
+        run: npm run eval
+        working-directory: workcell-studio
+      - name: Run Kujo ShipCheck gate
+        run: npm run shipcheck
         working-directory: workcell-studio
       - name: Static contract checks
         working-directory: workcell-studio

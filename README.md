@@ -41,7 +41,7 @@ Requirements: Node 20+, Kujo 1.0.0, Git, `jq`, Docker, the sibling
 
 ```bash
 ./scripts/prebuild-runtime.sh
-npm test
+npm run release
 npm start
 ```
 
@@ -58,6 +58,14 @@ WORKCELL_BIN=/path/to/workcell/bin/workcell \
 EVAL_MAIN=/path/to/eval/main.kujo \
 npm start
 ```
+
+## Usage
+
+Create the invoice scanner in the visible UI, then ask a WebMCP-capable browser
+agent: “Inspect the project and policy, establish a baseline by running
+Workcell and Eval before editing, diagnose every failure, repair it, rerun, and
+verify the evidence.” The same flow is available to a person through the file,
+diff, Run, Eval, evidence, export, cancellation, and reset controls.
 
 ## WebMCP tools
 
@@ -78,6 +86,7 @@ npm test             # schemas, annotations, isolation, paths, patches, Kujo fix
 npm run smoke        # real Workcell failure → repair → Eval → manifest loop
 npm run eval         # Kujo Eval dogfood gate for this repository
 npm run shipcheck    # Kujo ShipCheck release-readiness gate
+npm run release      # complete repository-owned release gate
 ```
 
 See [architecture](docs/ARCHITECTURE.md), [security](docs/SECURITY.md),

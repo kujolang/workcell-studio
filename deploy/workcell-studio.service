@@ -7,10 +7,12 @@ Requires=docker.service
 Type=simple
 User=workcell-studio
 Group=workcell-studio
+SupplementaryGroups=docker
 WorkingDirectory=/opt/workcell-studio
 Environment=NODE_ENV=production
 Environment=HOST=127.0.0.1
 Environment=PORT=4173
+Environment=STUDIO_TRUST_PROXY=loopback
 Environment=STUDIO_DATA_ROOT=/var/lib/workcell-studio/data
 Environment=STUDIO_WORKCELL_TMP=/var/lib/workcell-studio
 Environment=KUJO_BIN=/usr/local/bin/kujo
@@ -24,6 +26,13 @@ NoNewPrivileges=true
 PrivateTmp=false
 ProtectSystem=strict
 ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+PrivateDevices=true
+LockPersonality=true
+RestrictSUIDSGID=true
 ReadWritePaths=/var/lib/workcell-studio
 
 [Install]

@@ -8,6 +8,18 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+test("container Kujo commit matches Workcell's required runtime", async () => {
+  const dockerfile = await fs.readFile(path.join(root, "docker/kujo-runtime/Dockerfile"), "utf8");
+  const required = (await fs.readFile(path.join(root, "../workcell/RUNTIME_VERSION"), "utf8")).trim();
+  assert.match(dockerfile, new RegExp(`ARG KUJO_COMMIT=${required}`));
+});
+
+test("human UI exposes every collaboration and recovery control", async () => {
+  const html = await fs.readFile(path.join(root, "frontend/index.html"), "utf8");
+  for (const control of ["run-button", "cancel-run", "eval-button", "cancel-eval", "eval-report", "diff-button", "export-button", "reset-button"]) assert.match(html, new RegExp(`id=\\"${control}\\"`));
+  assert.doesNotMatch(html, /data-stage="collecting"|data-stage="verifying"/);
+});
+
 test("canonical Kujo fixture exposes the intended first-run failure", async (t) => {
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), "invoice-template-")); t.after(() => fs.rm(temp, { recursive: true, force: true }));
   await fs.cp(path.join(root, "templates/invoice-scanner"), temp, { recursive: true });

@@ -1,0 +1,24 @@
+[Unit]
+Description=Clean stale Kujo Workcell Studio resources
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=workcell-studio
+Group=workcell-studio
+SupplementaryGroups=docker
+WorkingDirectory=/opt/workcell
+Environment=KUJO=/usr/local/bin/kujo
+ExecStart=/opt/workcell/bin/workcell clean --backend docker --json
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+PrivateDevices=true
+LockPersonality=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/workcell-studio

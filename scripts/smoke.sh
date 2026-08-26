@@ -27,25 +27,36 @@ PROJECT_ID="$(jq -r '.project.id' "$DATA_ROOT/project.json")"
 curl -fsS -c "$COOKIE_FILE" -b "$COOKIE_FILE" "http://127.0.0.1:$PORT/api/projects/$PROJECT_ID/policy" | jq -e '.ok == true' >/dev/null
 curl -fsS -c "$COOKIE_FILE" -b "$COOKIE_FILE" -H 'Content-Type: application/json' -d '{}' "http://127.0.0.1:$PORT/api/projects/$PROJECT_ID/runs" >"$DATA_ROOT/run.json"
 RUN_ID="$(jq -r '.run_id' "$DATA_ROOT/run.json")"
-for _ in $(seq 1 120); do
+for _ in $(seq 1 300); do
   curl -fsS -c "$COOKIE_FILE" -b "$COOKIE_FILE" "http://127.0.0.1:$PORT/api/projects/$PROJECT_ID/runs/$RUN_ID" >"$DATA_ROOT/status.json"
   jq -e '.exit_category != null' "$DATA_ROOT/status.json" >/dev/null && break
   sleep 0.25
 done
 jq -e '.exit_category == "completed"' "$DATA_ROOT/status.json" >/dev/null
 curl -fsS -c "$COOKIE_FILE" -b "$COOKIE_FILE" -H 'Content-Type: application/json' -d '{}' "http://127.0.0.1:$PORT/api/projects/$PROJECT_ID/runs/$RUN_ID/evals" >"$DATA_ROOT/eval.json"
-jq -e '.status == "failed"' "$DATA_ROOT/eval.json" >/dev/null
-curl -fsS -c "$COOKIE_FILE" -b "$COOKIE_FILE" -H 'Content-Type: application/json' -d "{\"patch\":\"diff --git a/main.kujo b/main.kujo\\n--- a/main.kujo\\n+++ b/main.kujo\\n@@ -39,7 +39,7 @@ for csv_row in csv_rows {\\n mut duplicates := []\\n for invoice in invoices {\\n     # Demo bug: blank invoice IDs should be ignored.\\n-    if counts[invoice[\\\"invoice_id\\\"]] > 1 {\\n+    if invoice[\\\"invoice_id\\\"] != \\\"\\\" && counts[invoice[\\\"invoice_id\\\"]] > 1 {\\n         duplicates = push(duplicates, invoice)\\n     }\\n }\\n\"}" "http://127.0.0.1:$PORT/api/projects/$PROJECT_ID/patch" >/dev/null
+EVAL_ID="$(jq -r '.eval_id' "$DATA_ROOT/eval.json")"
+for _ in $(seq 1 300); do
+  curl -fsS -c "$COOKIE_FILE" -b "$COOKIE_FILE" "http://127.0.0.1:$PORT/api/projects/$PROJECT_ID/runs/$RUN_ID/evals/$EVAL_ID" >"$DATA_ROOT/eval.json"
+  jq -e '.report.status != "running"' "$DATA_ROOT/eval.json" >/dev/null && break
+  sleep 0.25
+done
+jq -e '.report.status == "failed"' "$DATA_ROOT/eval.json" >/dev/null
+curl -fsS -c "$COOKIE_FILE" -b "$COOKIE_FILE" -H 'Content-Type: application/json' -d "{\"patch\":\"diff --git a/main.kujo b/main.kujo\\n--- a/main.kujo\\n+++ b/main.kujo\\n@@ -39,7 +39,7 @@ for csv_row in csv_rows {\\n mut duplicates := []\\n for invoice in invoices {\\n     # Include invoice rows whose identifiers occur more than once.\\n-    if counts[invoice[\\\"invoice_id\\\"]] > 1 {\\n+    if invoice[\\\"invoice_id\\\"] != \\\"\\\" && counts[invoice[\\\"invoice_id\\\"]] > 1 {\\n         duplicates = push(duplicates, invoice)\\n     }\\n }\\n\"}" "http://127.0.0.1:$PORT/api/projects/$PROJECT_ID/patch" >/dev/null
 curl -fsS -c "$COOKIE_FILE" -b "$COOKIE_FILE" -H 'Content-Type: application/json' -d '{}' "http://127.0.0.1:$PORT/api/projects/$PROJECT_ID/runs" >"$DATA_ROOT/run2.json"
 RUN_ID="$(jq -r '.run_id' "$DATA_ROOT/run2.json")"
-for _ in $(seq 1 120); do
+for _ in $(seq 1 300); do
   curl -fsS -c "$COOKIE_FILE" -b "$COOKIE_FILE" "http://127.0.0.1:$PORT/api/projects/$PROJECT_ID/runs/$RUN_ID" >"$DATA_ROOT/status2.json"
   jq -e '.exit_category != null' "$DATA_ROOT/status2.json" >/dev/null && break
   sleep 0.25
 done
 jq -e '.exit_category == "completed"' "$DATA_ROOT/status2.json" >/dev/null
 curl -fsS -c "$COOKIE_FILE" -b "$COOKIE_FILE" -H 'Content-Type: application/json' -d '{}' "http://127.0.0.1:$PORT/api/projects/$PROJECT_ID/runs/$RUN_ID/evals" >"$DATA_ROOT/eval2.json"
-jq -e '.status == "passed"' "$DATA_ROOT/eval2.json" >/dev/null
 EVAL_ID="$(jq -r '.eval_id' "$DATA_ROOT/eval2.json")"
+for _ in $(seq 1 120); do
+  curl -fsS -c "$COOKIE_FILE" -b "$COOKIE_FILE" "http://127.0.0.1:$PORT/api/projects/$PROJECT_ID/runs/$RUN_ID/evals/$EVAL_ID" >"$DATA_ROOT/eval2.json"
+  jq -e '.report.status != "running"' "$DATA_ROOT/eval2.json" >/dev/null && break
+  sleep 0.25
+done
+jq -e '.report.status == "passed"' "$DATA_ROOT/eval2.json" >/dev/null
 curl -fsS -c "$COOKIE_FILE" -b "$COOKIE_FILE" -H 'Content-Type: application/json' -d "{\"eval_id\":\"$EVAL_ID\"}" "http://127.0.0.1:$PORT/api/projects/$PROJECT_ID/runs/$RUN_ID/verify" | jq -e '.ok == true and .evidence_verified == true and .eval_manifest_verified == true' >/dev/null
 echo "Workcell Studio smoke passed: failure → repair → Eval pass → manifest verification"

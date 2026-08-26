@@ -7,8 +7,10 @@ the visible network-none/resource boundary.
 **0:20–0:40** — Show the WebMCP inspector and the focused Studio tools. “The
 agent uses product capabilities, not DOM guessing or a generic shell.”
 
-**0:40–1:25** — Ask: “Finish the invoice duplicate detector and verify it.” The
-agent inspects state, files, implementation, and policy; then runs Workcell.
+**0:40–1:25** — Ask: “Inspect the project and policy, establish a baseline by
+running Workcell and Eval before editing, then diagnose every failure, repair,
+rerun, and verify.” The agent inspects state, files, implementation, and policy;
+then runs Workcell.
 Open the real receipt summary. Run Eval: it fails because blank invoice IDs are
 counted as duplicates.
 
