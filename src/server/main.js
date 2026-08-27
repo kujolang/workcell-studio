@@ -4,10 +4,13 @@ import http from "node:http";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { AccessGate } from "./access.js";
 import { LIMITS } from "./limits.js";
 import { Studio, StudioError } from "./studio.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const production = process.env.NODE_ENV === "production";
+const access = new AccessGate({ code: process.env.STUDIO_ACCESS_CODE || "", production });
 const studio = new Studio({
   root,
   dataRoot: path.resolve(process.env.STUDIO_DATA_ROOT || path.join(root, "../.workcell-host-tmp/workcell-studio-data")),
@@ -22,14 +25,19 @@ const securityHeaders = { "X-Content-Type-Options": "nosniff", "X-Frame-Options"
 const requestRates = new Map();
 let sseConnections = 0;
 
-function rateLimit(req, route) {
+function clientAddress(req) {
   let address = req.socket.remoteAddress || "unknown";
   if (process.env.STUDIO_TRUST_PROXY === "loopback" && net.isIP(address) && (address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1")) {
     const forwarded = String(req.headers["x-forwarded-for"] || "").split(",").map((item) => item.trim()).filter(Boolean).at(-1);
     if (forwarded && net.isIP(forwarded)) address = forwarded;
   }
-  const windowMs = route === "create" ? 60 * 60 * 1000 : 60 * 1000;
-  const limit = route === "create" ? 10 : 240;
+  return address;
+}
+
+function rateLimit(req, route) {
+  const address = clientAddress(req);
+  const windowMs = route === "create" ? 60 * 60 * 1000 : route === "login" ? 15 * 60 * 1000 : 60 * 1000;
+  const limit = route === "create" ? 10 : route === "login" ? 5 : 240;
   const key = `${address}:${route}`; const current = requestRates.get(key); const time = Date.now();
   if (requestRates.size >= LIMITS.maxRateLimitEntries && !requestRates.has(key)) {
     for (const [candidate, value] of requestRates) if (value.reset <= time) requestRates.delete(candidate);
@@ -41,10 +49,16 @@ function rateLimit(req, route) {
 }
 
 function session(req, res) {
-  const match = /(?:^|;\s*)kujo_studio_session=([a-f0-9]{32})/.exec(req.headers.cookie || "");
+  const cookieName = production ? "__Host-kujo_studio_session" : "kujo_studio_session";
+  const match = new RegExp(`(?:^|;\\s*)${cookieName}=([a-f0-9]{32})`).exec(req.headers.cookie || "");
   const value = match?.[1] || crypto.randomBytes(16).toString("hex");
-  if (!match) res.setHeader("Set-Cookie", `kujo_studio_session=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=7200${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
+  if (!match) res.setHeader("Set-Cookie", `${cookieName}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=7200${production ? "; Secure" : ""}`);
   return value;
+}
+
+function clearSessionCookie() {
+  const cookieName = production ? "__Host-kujo_studio_session" : "kujo_studio_session";
+  return `${cookieName}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${production ? "; Secure" : ""}`;
 }
 
 async function body(req) {
@@ -64,16 +78,33 @@ function fail(res, error) {
 }
 
 async function serveFile(res, target, download = false) {
-  const data = await fsp.readFile(target); res.writeHead(200, { ...securityHeaders, "Content-Type": download ? "application/gzip" : mime[path.extname(target)] || "application/octet-stream", "Content-Length": data.length, "Cache-Control": download ? "no-store" : "public, max-age=60", ...(download ? { "Content-Disposition": `attachment; filename="${path.basename(target)}"` } : {}) }); res.end(data);
+  const data = await fsp.readFile(target); const html = path.extname(target) === ".html"; res.writeHead(200, { ...securityHeaders, "Content-Type": download ? "application/gzip" : mime[path.extname(target)] || "application/octet-stream", "Content-Length": data.length, "Cache-Control": download || html ? "no-store" : "public, max-age=60", ...(html ? { Vary: "Cookie" } : {}), ...(download ? { "Content-Disposition": `attachment; filename="${path.basename(target)}"` } : {}) }); res.end(data);
 }
 
 const server = http.createServer(async (req, res) => {
-  const sid = session(req, res); const url = new URL(req.url, "http://studio.local"); const parts = url.pathname.split("/").filter(Boolean);
+  const url = new URL(req.url, "http://studio.local"); const parts = url.pathname.split("/").filter(Boolean);
   try {
     if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && req.headers["sec-fetch-site"] === "cross-site") throw new StudioError("cross_site_request", "Cross-site state changes are not accepted.", 403);
-    rateLimit(req, url.pathname === "/api/projects" && req.method === "POST" ? "create" : "request");
     if (url.pathname === "/api/health") return send(res, 200, { ok: true, service: "kujo-workcell-studio" });
     if (url.pathname === "/api/ready") { const readiness = studio.readiness(); return send(res, readiness.ok ? 200 : 503, readiness); }
+    if (url.pathname === "/api/auth/status" && req.method === "GET") return send(res, 200, { ok: true, required: access.enabled, authenticated: access.authenticate(req.headers.cookie) });
+    if (url.pathname === "/api/auth/login" && req.method === "POST") {
+      rateLimit(req, "login"); const input = await body(req);
+      if (!access.verifyCode(input.code)) throw new StudioError("invalid_access_code", "The access code was not accepted.", 401);
+      const token = access.issue(); return send(res, 200, { ok: true, authenticated: true }, { "Set-Cookie": access.cookie(token) });
+    }
+    if (url.pathname === "/api/auth/logout" && req.method === "POST") {
+      access.revoke(req.headers.cookie); return send(res, 200, { ok: true, authenticated: false }, { "Set-Cookie": [access.clearCookie(), clearSessionCookie()] });
+    }
+    const authenticated = access.authenticate(req.headers.cookie);
+    if (!authenticated) {
+      if (req.method === "GET" && url.pathname === "/") return serveFile(res, path.join(root, "frontend/access.html"));
+      if (req.method === "GET" && ["/access.js", "/styles.css"].includes(url.pathname)) return serveFile(res, path.join(root, "frontend", url.pathname.slice(1)));
+      if (url.pathname.startsWith("/api/")) throw new StudioError("authentication_required", "Judge access is required.", 401);
+      res.writeHead(401, { ...securityHeaders, "Cache-Control": "no-store" }); return res.end("Judge access is required.");
+    }
+    const sid = session(req, res);
+    rateLimit(req, url.pathname === "/api/projects" && req.method === "POST" ? "create" : "request");
     if (url.pathname === "/api/events" && req.method === "GET") {
       if (sseConnections >= LIMITS.maxSseConnections) throw new StudioError("capacity", "Live update capacity is full.", 429);
       sseConnections += 1;

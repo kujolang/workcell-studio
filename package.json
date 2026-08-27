@@ -7,7 +7,7 @@
     "dev": "node --watch src/server/main.js",
     "start": "node src/server/main.js",
     "test": "node --test tests/*.test.js",
-    "lint": "node --check src/server/main.js && node --check src/server/studio.js && node --check webmcp/register-tools.js && node --check scripts/webmcp-chrome-smoke.mjs",
+    "lint": "node --check src/server/main.js && node --check src/server/access.js && node --check src/server/studio.js && node --check frontend/access.js && node --check frontend/app.js && node --check webmcp/register-tools.js && node --check scripts/webmcp-chrome-smoke.mjs",
     "format": "node scripts/check-format.js",
     "smoke": "bash scripts/smoke.sh",
     "eval": "bash scripts/eval-studio.sh",

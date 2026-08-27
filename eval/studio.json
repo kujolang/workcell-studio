@@ -11,6 +11,8 @@
     {"name": "canonical demo exists", "check": "file_exists", "params": {"path": "templates/invoice-scanner/workcell.json"}},
     {"name": "hackathon disclosure exists", "check": "file_exists", "params": {"path": "docs/HACKATHON.md"}},
     {"name": "security model exists", "check": "file_exists", "params": {"path": "docs/SECURITY.md"}},
+    {"name": "judge access uses constant-time comparison", "check": "file_contains", "params": {"path": "src/server/access.js", "expected": "timingSafeEqual"}},
+    {"name": "production service loads private access environment", "check": "file_contains", "params": {"path": "deploy/workcell-studio.service", "expected": "EnvironmentFile=/etc/workcell-studio/access.env"}},
     {"name": "health endpoint responds", "check": "http_status", "params": {"url": "http://127.0.0.1:43174/api/health", "expected_status": 200}},
     {"name": "readiness identifies real integrations", "check": "http_body_contains", "params": {"url": "http://127.0.0.1:43174/api/ready", "expected_status": 200, "expected": "\"workcell\":true"}}
   ]

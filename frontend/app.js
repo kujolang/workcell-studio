@@ -3,7 +3,7 @@ import { toolDefinitions } from "/webmcp/register-tools.js";
 const state = { projectId: null, runId: null, evalId: null, activeFile: null, data: null };
 window.kujoStudio = state;
 const $ = (id) => document.getElementById(id);
-const request = async (url, options = {}) => { const response = await fetch(url, { ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } }); const data = await response.json(); if (!response.ok) throw new Error(data.summary || data.error); return data; };
+const request = async (url, options = {}) => { const response = await fetch(url, { ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } }); const data = await response.json(); if (response.status === 401) { window.location.replace("/"); throw new Error("Judge access expired."); } if (!response.ok) throw new Error(data.summary || data.error); return data; };
 const show = (id, visible = true) => $(id).classList.toggle("hidden", !visible);
 const inspect = (title, value) => { $("active-file").textContent = title; $("inspector").textContent = JSON.stringify(value, null, 2); show("inspector"); show("editor", false); show("empty-state", false); };
 const claim = (id, label, kind = "") => { const node = $(id); node.querySelector("b").textContent = label; node.className = `claim ${kind}`; };
@@ -40,6 +40,7 @@ $("eval-button").addEventListener("click", async () => { if (!state.runId) retur
 $("cancel-eval").addEventListener("click", async () => { if (!state.evalId || !state.runId) return; await request(`/api/projects/${state.projectId}/runs/${state.runId}/evals/${state.evalId}/cancel`, { method: "POST", body: "{}" }); await refresh(); });
 $("eval-report").addEventListener("click", async () => { if (state.evalId && state.runId) inspect("KUJO EVAL REPORT", await request(`/api/projects/${state.projectId}/runs/${state.runId}/evals/${state.evalId}`)); });
 $("verify-button").addEventListener("click", async () => { if (!state.runId) return; const data = await request(`/api/projects/${state.projectId}/runs/${state.runId}/verify`, { method: "POST", body: JSON.stringify({ eval_id: state.evalId }) }); claim("evidence-claim", data.ok ? "VERIFIED" : "INVALID", data.ok ? "pass" : "fail"); inspect("INTEGRITY VERIFICATION", data); });
+$("logout-button").addEventListener("click", async () => { await request("/api/auth/logout", { method: "POST", body: "{}" }); window.location.replace("/"); });
 
 window.addEventListener("studio:webmcp", (event) => { $("webmcp-badge").textContent = `WebMCP · ${event.detail.registered} tools`; $("webmcp-badge").className = "badge ok"; });
 if (!document.modelContext) { $("webmcp-badge").textContent = `WebMCP progressive · ${toolDefinitions.length} tools`; }

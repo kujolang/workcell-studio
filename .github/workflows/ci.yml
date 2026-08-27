@@ -68,6 +68,8 @@ jobs:
         run: |
           test -f LICENSE
           test -f docs/HACKATHON.md
+          test -f frontend/access.html
           test -f templates/invoice-scanner/workcell.json
+          grep -q 'timingSafeEqual' src/server/access.js
           grep -q 'document.modelContext' webmcp/register-tools.js
           grep -q 'registerTool' webmcp/register-tools.js

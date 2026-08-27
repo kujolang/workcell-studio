@@ -23,4 +23,7 @@ git diff --check
 test -f LICENSE
 test -f docs/HACKATHON.md
 test -f docs/SUBMISSION.md
+test -f frontend/access.html
+rg -q '^EnvironmentFile=/etc/workcell-studio/access\.env$' deploy/workcell-studio.service
+rg -q 'timingSafeEqual' src/server/access.js
 echo "Workcell Studio repository release gate passed"

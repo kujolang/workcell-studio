@@ -10,6 +10,7 @@ Group=workcell-studio
 SupplementaryGroups=docker
 WorkingDirectory=/opt/workcell-studio
 Environment=NODE_ENV=production
+EnvironmentFile=/etc/workcell-studio/access.env
 Environment=HOST=127.0.0.1
 Environment=PORT=4173
 Environment=STUDIO_TRUST_PROXY=loopback
@@ -22,6 +23,7 @@ ExecStart=/usr/bin/node src/server/main.js
 Restart=on-failure
 RestartSec=2
 TimeoutStopSec=45
+UMask=0077
 NoNewPrivileges=true
 PrivateTmp=false
 ProtectSystem=strict

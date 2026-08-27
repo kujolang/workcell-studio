@@ -12,6 +12,8 @@ export const LIMITS = Object.freeze({
   maxProjectsPerSession: 5,
   maxSseConnections: 32,
   maxRateLimitEntries: 4096,
+  maxAccessSessions: 128,
+  accessTtlMs: 2 * 60 * 60 * 1000,
 });
 
 export const PUBLIC_POLICY = Object.freeze({

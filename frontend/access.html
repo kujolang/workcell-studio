@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Judge access for Kujo Workcell Studio.">
+  <title>Judge access · Kujo Workcell Studio</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="access-body">
+  <main class="access-card">
+    <div class="brand"><span class="mark">K</span><div><strong>KUJO</strong><small>WORKCELL STUDIO</small></div></div>
+    <div class="eyebrow">CONTROLLED DEMO ACCESS</div>
+    <h1>Enter the judge access code</h1>
+    <p>This deployment is isolated for challenge evaluation. The access code is provided privately in the Devpost testing instructions.</p>
+    <form id="access-form">
+      <label for="access-code">Access code</label>
+      <input id="access-code" name="code" type="password" autocomplete="current-password" minlength="20" maxlength="128" required autofocus>
+      <div id="access-error" class="error" role="alert" aria-live="polite"></div>
+      <button class="primary" type="submit">Open Workcell Studio</button>
+    </form>
+  </main>
+  <script type="module" src="/access.js"></script>
+</body>
+</html>
