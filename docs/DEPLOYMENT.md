@@ -17,6 +17,8 @@ bounded child processes, evidence storage, cancellation, and cleanup.
   Workcell rejects a rootless daemon instead of silently changing identity.
 - Dedicated unprivileged service account; no cloud credentials in its
   environment; no public daemon socket.
+- Root-owned access-code environment file, fail-closed production startup, and
+  the credential supplied only through Devpost's private testing instructions.
 - Reverse proxy with HTTPS, request/body limits, rate limits, and connection
   timeouts. Preserve `Origin-Agent-Cluster: ?1` and `Permissions-Policy:
   tools=(self)`. The service unit trusts forwarded client IPs only from its

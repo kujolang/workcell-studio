@@ -3,7 +3,8 @@
 ## Trust path
 
 ```text
-untrusted browser agent → WebMCP input → Studio API → session project
+untrusted visitor → judge access gate → browser agent → WebMCP input
+→ Studio API → session project
 → fixed Kujo policy guard → Workcell definition v1 → Docker daemon → host
 ```
 
@@ -14,6 +15,11 @@ operator infrastructure; Workcell does not claim to contain their compromise.
 ## Mitigations
 
 - No arbitrary shell/host command capability exists in WebMCP or the API.
+- Production startup fails closed unless a strong deployment-only judge access
+  code is configured. Constant-time comparison, a dedicated login rate limit,
+  bounded in-memory access sessions, expiry, revocation, and `__Host-` Secure,
+  HttpOnly, SameSite cookies protect the shared-code gate. UI, API, SSE, export,
+  and WebMCP assets remain unavailable before authentication.
 - Opaque IDs are resolved under the current HttpOnly session only.
 - Paths reject absolutes, traversal, backslashes, NULs, oversized values, and
   symlinks at every existing component. Targets are canonicalized beneath the
@@ -43,6 +49,9 @@ operator infrastructure; Workcell does not claim to contain their compromise.
   performs label-scoped container termination and cleanup.
 - Session data expires automatically after two hours and is swept every 15
   minutes. Production should also run Workcell ownership-scoped clean.
+- The access code is a contest admission control, not an identity system. One
+  shared credential maps judges into separate random Studio sessions; it never
+  grants shell, Docker, policy, cross-session, or host authority.
 
 ## Prompt-injection boundary
 
@@ -69,6 +78,9 @@ explicitly labeled for the consuming agent.
   broad-scale deployments may move archive creation to a worker queue.
 - Cleanup at startup is not a distributed retention service. A production VM
   needs a supervised periodic job and disk quota.
+- A leaked shared judge credential permits bounded application use until it is
+  rotated and the service restarts. Keep it only in the root-owned deployment
+  environment and Devpost's private testing instructions.
 
 Report security issues privately to the repository maintainers. Do not include
 secrets or live multi-tenant data in reports.

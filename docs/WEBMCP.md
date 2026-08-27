@@ -4,6 +4,12 @@ The Studio registers 16 Imperative tools with the current
 `document.modelContext.registerTool` API. Registration is progressive: normal
 human UI remains functional in browsers without WebMCP.
 
+On the production judge deployment, the browser must first authenticate on the
+visible access page. The registration module and all tool-backed API routes are
+unavailable before that step, so an unauthenticated browser agent cannot
+discover or invoke Studio capabilities. The access code is never a WebMCP tool
+input or output.
+
 Tools are domain capabilities, not a generic executor. Names are under 30
 characters; schemas reject unknown fields and use opaque IDs and bounded input.
 Descriptions and outputs stay within current Chrome guidance. Runtime checks

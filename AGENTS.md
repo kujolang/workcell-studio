@@ -20,6 +20,8 @@ never exposes arbitrary host command execution.
 
 - All client paths are project-relative, canonicalized, and symlink-free.
 - Opaque project/run/eval IDs are always resolved beneath the current session.
+- Production fails closed without a strong `STUDIO_ACCESS_CODE`; never commit,
+  log, place in a URL, or expose that deployment credential to WebMCP.
 - Public definitions use network `none`, fixed resource/output limits, no
   secrets, read-only root, declared artifacts, and automatic cleanup.
 - Never add `shell`, `exec`, `command`, host mount, Docker flag, image selector,

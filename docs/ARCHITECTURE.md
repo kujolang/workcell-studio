@@ -1,6 +1,8 @@
 # Architecture
 
 ```text
+Judge access ─ authenticated browser session
+                     │
 Human UI ─────────────┐
                      ├─ Studio capability API ─ Kujo policy guard
 Browser agent/WebMCP ┘             │
@@ -23,6 +25,13 @@ The browser adapter is deliberately thin. Both the visible controls and the
 WebMCP tools call identical HTTP services, so an agent action visibly updates
 the same project the human is reviewing. Server-sent events refresh project,
 workspace, run, and Eval state.
+
+Production serves only health, readiness, authentication, and the access page
+before judge authentication. A deployment-only code creates a short-lived,
+revocable access session; only then are the Studio UI, WebMCP adapter, API,
+events, and exports reachable. This admission gate is separate from the random
+Studio session that owns projects and is not an identity or authorization
+system.
 
 Project metadata and activity use small structured JSON files. Each browser
 session has a random HttpOnly cookie and a private data root. Project, run, and

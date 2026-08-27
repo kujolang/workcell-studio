@@ -23,6 +23,8 @@ trail the human can inspect.
 
 ## What works
 
+- Protect the public judge deployment with a fail-closed, rate-limited access
+  code while keeping credentials out of source, URLs, logs, and WebMCP.
 - Create one of three small, session-isolated Kujo projects.
 - Inspect and edit the same live workspace through the UI or 16 focused WebMCP
   tools.
@@ -58,6 +60,11 @@ WORKCELL_BIN=/path/to/workcell/bin/workcell \
 EVAL_MAIN=/path/to/eval/main.kujo \
 npm start
 ```
+
+Production additionally requires a 20–128 character printable, non-whitespace
+`STUDIO_ACCESS_CODE`. The reviewed systemd unit loads it from the root-owned
+`/etc/workcell-studio/access.env`; local development remains open when
+`NODE_ENV` is not `production`.
 
 ## Usage
 

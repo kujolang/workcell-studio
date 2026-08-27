@@ -1,5 +1,9 @@
 # Demo script (under three minutes)
 
+Before recording, authenticate privately and ensure the access code, password
+manager, browser history, and Devpost private fields never appear in the public
+video.
+
 **0:00–0:20** — Open Studio. “Browser agents can operate applications, but
 generated software should not receive unrestricted execution authority.” Show
 the visible network-none/resource boundary.

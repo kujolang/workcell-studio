@@ -38,7 +38,7 @@ Use these exact public sources and revisions:
 
 | Component | Source | Revision |
 | --- | --- | --- |
-| Studio | `https://github.com/kujolang/workcell-studio.git` | immutable tag `v0.1.0-rc.2` |
+| Studio | `https://github.com/kujolang/workcell-studio.git` | immutable tag `v0.1.0-rc.3` |
 | Workcell | `https://github.com/kujolang/workcell.git` | `7bcdb7f29ddf74843aec6b70eafbf33cc7944c6f` |
 | Eval | `https://github.com/kujolang/eval.git` | `955713f487c094b20b7b8c44414ae17395194cc9` |
 | Kujo host runtime | GitHub release `v1.0.0`, Linux x64 | SHA-256 below |
@@ -204,12 +204,12 @@ git clone https://github.com/kujolang/workcell-studio.git /opt/workcell-studio
 git clone https://github.com/kujolang/workcell.git /opt/workcell
 git clone https://github.com/kujolang/eval.git /opt/eval
 
-git -C /opt/workcell-studio checkout --detach v0.1.0-rc.2
+git -C /opt/workcell-studio checkout --detach v0.1.0-rc.3
 git -C /opt/workcell checkout --detach 7bcdb7f29ddf74843aec6b70eafbf33cc7944c6f
 git -C /opt/eval checkout --detach 955713f487c094b20b7b8c44414ae17395194cc9
 
 test "$(git -C /opt/workcell-studio rev-parse HEAD)" = \
-  "$(git -C /opt/workcell-studio rev-list -n 1 v0.1.0-rc.2)"
+  "$(git -C /opt/workcell-studio rev-list -n 1 v0.1.0-rc.3)"
 test "$(git -C /opt/workcell rev-parse HEAD)" = \
   7bcdb7f29ddf74843aec6b70eafbf33cc7944c6f
 test "$(git -C /opt/eval rev-parse HEAD)" = \
@@ -239,9 +239,9 @@ KUJO_BIN=/usr/local/bin/kujo \
 Required results:
 
 - Pinned image prints `kujo 1.0.0`.
-- Twenty-one repository tests pass.
+- Twenty-six repository tests pass.
 - The real Workcell failure/repair smoke passes.
-- Kujo Eval passes eight checks and verifies its manifest.
+- Kujo Eval passes ten checks and verifies its manifest.
 - ShipCheck reports zero errors. Its two Node-repository advisory warnings
   about `kennel.toml` and a root Kujo entrypoint are expected and inapplicable.
 - `workcell doctor` returns an overall successful result for Docker.
@@ -249,6 +249,27 @@ Required results:
 Stop on any failure. Do not edit policy or skip a test to make the gate green.
 
 ## Phase 7: install systemd and Caddy configuration
+
+Create the root-owned deployment credential before installing the production
+service. Generate it on the VM without placing the value in the command line,
+repository, shell history, or agent transcript:
+
+```bash
+install -d -o root -g root -m 0700 /etc/workcell-studio
+umask 077
+node -e 'process.stdout.write(`STUDIO_ACCESS_CODE=${require("node:crypto").randomBytes(24).toString("base64url")}\n`)' \
+  > /etc/workcell-studio/access.env
+chown root:root /etc/workcell-studio/access.env
+chmod 0600 /etc/workcell-studio/access.env
+grep -Eq '^STUDIO_ACCESS_CODE=[A-Za-z0-9_-]{32}$' \
+  /etc/workcell-studio/access.env
+```
+
+The production service fails closed if this file is missing, unreadable, or
+contains a weak access code. The deployment agent must not print the populated
+file. At the human checkpoint, the owner retrieves the value directly in their
+private SSH terminal, stores it in a password manager, and later pastes it only
+into Devpost's private testing instructions. Do not send it through agent chat.
 
 Install the reviewed service units:
 
@@ -352,22 +373,28 @@ was not required rather than claiming one exists.
 
 Use a fresh browser session with no existing Studio cookie:
 
-1. Open `https://<HOSTNAME>` and confirm the interface loads without login.
-2. Create the invoice-scanner template.
-3. Inspect its boundary and confirm network `NONE`, one CPU, 256 MiB memory,
+1. Open `https://<HOSTNAME>` and confirm the controlled judge-access screen
+   loads without exposing Studio UI, API, SSE, export, or WebMCP assets.
+2. Confirm a wrong code is rejected, then enter the deployment access code.
+3. Confirm the Studio loads, the code is absent from the URL, and the browser
+   receives Secure, HttpOnly, SameSite `__Host-` cookies.
+4. Create the invoice-scanner template.
+5. Inspect its boundary and confirm network `NONE`, one CPU, 256 MiB memory,
    read-only root, isolated workspace, no secrets, and declared-only artifacts.
-4. Run Workcell and wait for an actual completed execution.
-5. Run Eval and observe the intentional blank-ID failure.
-6. Read the Eval failure and implementation.
-7. Apply the targeted blank-ID repair.
-8. Run Workcell again.
-9. Run Eval again and confirm all deterministic checks pass.
-10. Verify the Workcell manifest and Eval manifest.
-11. Inspect the real receipt, logs, changed files, patch, and artifact list.
-12. Export the project and confirm the archive downloads.
-13. Reset the project and confirm visible state synchronization.
-14. Cancel one disposable test run and confirm it reaches `cancelled` without an
+6. Run Workcell and wait for an actual completed execution.
+7. Run Eval and observe the intentional blank-ID failure.
+8. Read the Eval failure and implementation.
+9. Apply the targeted blank-ID repair.
+10. Run Workcell again.
+11. Run Eval again and confirm all deterministic checks pass.
+12. Verify the Workcell manifest and Eval manifest.
+13. Inspect the real receipt, logs, changed files, patch, and artifact list.
+14. Export the project and confirm the archive downloads.
+15. Reset the project and confirm visible state synchronization.
+16. Cancel one disposable test run and confirm it reaches `cancelled` without an
     abandoned container.
+17. End the judge session and confirm the old access cookie no longer reaches
+    the Studio API or WebMCP assets.
 
 On the server, confirm the service and cleanup timer remain healthy:
 
@@ -383,7 +410,8 @@ No unexpected managed container may remain after completed or cancelled runs.
 
 ## Phase 11: real WebMCP agent acceptance
 
-Open the public deployment in ChatGPT's WebMCP-capable in-app browser. Ask:
+Open the public deployment in ChatGPT's WebMCP-capable in-app browser, enter the
+judge access code, and then ask:
 
 > Inspect the project and policy, establish a baseline by running Workcell and
 > Eval before editing, diagnose every failure, repair it, rerun, and verify the
@@ -411,6 +439,7 @@ After the public URL and browser checks pass:
 1. Replace `pending deployment` in `README.md` with the live HTTPS URL.
 2. Add the deployed URL and dated verification result to `docs/SUBMISSION.md`.
 3. Add no credentials, host IPs, private keys, session cookies, or cloud tokens.
+   The populated access code belongs only in the private Devpost field.
 4. Run `npm run release` from the clean development checkout.
 5. Commit the deployment metadata in a small commit and push `main`.
 6. Confirm hosted CI is green.
@@ -432,10 +461,13 @@ Human checkpoints:
 1. The owner reviews and publishes the final video publicly or unlisted on
    YouTube.
 2. Add the video URL to the README and Devpost entry.
-3. Re-check the current official challenge page and Devpost rules immediately
+3. Add the live URL and populated access code to Devpost's private testing
+   instructions using the template in [`SUBMISSION.md`](SUBMISSION.md). Test the
+   copied credential once without exposing it in public text or video.
+4. Re-check the current official challenge page and Devpost rules immediately
    before submission; current rules and deadlines override this repository.
-4. The owner reviews all eligibility, originality, and submission attestations.
-5. The owner presses **Submit** and saves the submission confirmation URL.
+5. The owner reviews all eligibility, originality, and submission attestations.
+6. The owner presses **Submit** and saves the submission confirmation URL.
 
 ## Evidence bundle
 
@@ -451,6 +483,7 @@ Retain this non-secret evidence for handoff:
 - Health/readiness responses
 - TLS and required response-header check
 - Origin-trial registration status, without account credentials
+- Access-gate status and private Devpost handoff confirmation, never the code
 - Workcell failure and repaired-run IDs
 - Eval failure and passing-report IDs
 - Workcell and Eval manifest-verification results
@@ -490,12 +523,15 @@ Deployment is complete only when every applicable item is true:
 - [ ] Only ports 80/443 are publicly open beyond restricted SSH.
 - [ ] Docker is rootful, private, and not exposed over TCP.
 - [ ] Exact Studio, Workcell, Eval, and Kujo revisions are installed.
+- [ ] Root-owned access environment exists and production fails closed without it.
 - [ ] Target-host release gate passes.
 - [ ] `workcell doctor` passes on the target Docker engine.
 - [ ] Runtime image is prebuilt before judging.
 - [ ] systemd service and cleanup timer are active.
 - [ ] Public HTTPS health and readiness return success.
 - [ ] Required security/WebMCP headers are present.
+- [ ] Unauthenticated UI, API, SSE, export, and WebMCP access is rejected.
+- [ ] Correct judge access creates expiring Secure `__Host-` cookies.
 - [ ] Public canonical failure/repair/Eval/evidence flow passes.
 - [ ] Cancellation leaves no abandoned managed container.
 - [ ] ChatGPT's WebMCP browser discovers and uses all expected capabilities.
@@ -503,5 +539,6 @@ Deployment is complete only when every applicable item is true:
 - [ ] Hosted CI is green for the deployed commit.
 - [ ] Public audio demo video is below the current time limit.
 - [ ] README and Devpost contain the video URL.
+- [ ] Devpost private testing instructions contain the tested access credential.
 - [ ] Official rules and deadline were rechecked immediately before submission.
 - [ ] Owner reviewed attestations and submitted the Devpost entry.

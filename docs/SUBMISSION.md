@@ -34,9 +34,30 @@ read-only and untrusted-content annotations, compact outputs, shared UI/API
 services, and AbortSignal propagation. Long Workcell operations return a run
 ID and are polled; cancellation reaches the scoped Workcell and Eval processes.
 
+## Private judge testing instructions
+
+Enter these values only in Devpost's private testing-instructions fields after
+the deployment is verified. Never commit the populated values:
+
+```text
+Live URL: https://<HOSTNAME>
+Access code: <STUDIO_ACCESS_CODE>
+
+1. Open the live URL in ChatGPT's in-app browser or WebMCP-enabled Chrome.
+2. Enter the access code once on the controlled demo access screen.
+3. Create the Invoice scanner canonical demo.
+4. Ask the browser agent to inspect, baseline-run, evaluate, repair, rerun, and
+   verify the evidence.
+```
+
+The shared code provides bounded application access only. Each judge receives a
+separate random Studio session; the credential provides no SSH, Docker, host,
+policy, cross-session, or secret access.
+
 ## Submission checklist
 
 - [ ] Replace pending live URL in README.
+- [ ] Put the live access code only in Devpost's private testing instructions.
 - [ ] Verify deployed URL in ChatGPT in-app browser and Chrome WebMCP.
 - [ ] Run canonical scenario with a real WebMCP-capable agent.
 - [ ] Record and publish public audio video under three minutes.

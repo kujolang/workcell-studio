@@ -16,6 +16,7 @@ presented as challenge-era inventions.
 - Shared human/agent project model and collaboration UI
 - 16-tool WebMCP surface and browser adapter
 - Studio capability API and session/project isolation
+- Production judge access gate and private credential handoff
 - Kujo public-profile policy guard
 - WebMCP-to-Workcell execution controller and cancellation bridge
 - Workcell evidence projection and independent Eval integration
