@@ -38,7 +38,7 @@ trail the human can inspect.
 
 ## Quick start
 
-Requirements: Node 20+, Kujo 1.0.0, Git, `jq`, Docker, the sibling
+Requirements: Node 24.22.1, Kujo 1.6.0, Git, `jq`, Docker, the sibling
 `kujolang/workcell` and `kujolang/eval` checkouts.
 
 ```bash

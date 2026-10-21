@@ -11,7 +11,7 @@ fi
 
 docker image inspect kujolang/workcell-kujo:local >/dev/null
 test "$(docker image inspect kujolang/workcell-kujo:local --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$required_runtime"
-test "$(docker run --rm --network none --read-only kujolang/workcell-kujo:local kujo --version)" = "kujo 1.0.0"
+test "$(docker run --rm --network none --read-only kujolang/workcell-kujo:local kujo --version)" = "kujo 1.6.0"
 npm test
 npm run lint
 npm run format

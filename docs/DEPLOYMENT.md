@@ -24,7 +24,7 @@ bounded child processes, evidence storage, cancellation, and cleanup.
   tools=(self)`. The service unit trusts forwarded client IPs only from its
   loopback proxy so application quotas do not collapse all users into one key.
 - Prebuild `kujolang/workcell-kujo:local`; do not build or pull during judging.
-- Pin Workcell 1.0.0 and its required Kujo 1.0.0 commit. Run `workcell doctor`
+- Pin Workcell 1.0.0 and its required Kujo commit from `../workcell/RUNTIME_VERSION` (currently 1.6.0). Run `workcell doctor`
   on the target host and retain the receipt.
 - Persistent evidence volume with filesystem quota; periodic session expiry and
   `workcell clean` inventory; alerts for cleanup failures and disk pressure.

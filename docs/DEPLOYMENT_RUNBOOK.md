@@ -39,15 +39,15 @@ Use these exact public sources and revisions:
 | Component | Source | Revision |
 | --- | --- | --- |
 | Studio | `https://github.com/kujolang/workcell-studio.git` | immutable tag `v0.1.0-rc.3` |
-| Workcell | `https://github.com/kujolang/workcell.git` | `7bcdb7f29ddf74843aec6b70eafbf33cc7944c6f` |
-| Eval | `https://github.com/kujolang/eval.git` | `955713f487c094b20b7b8c44414ae17395194cc9` |
-| Kujo host runtime | GitHub release `v1.0.0`, Linux x64 | SHA-256 below |
-| Kujo Workcell image runtime | Built by `scripts/prebuild-runtime.sh` | commit `2b3e07d398016e92008d8399e79c441e012dce38` |
+| Workcell | `https://github.com/kujolang/workcell.git` | `e1af7043622d4e22c849d163367dadaba35ad0f1` |
+| Eval | `https://github.com/kujolang/eval.git` | `71e66dff780d6930bcbe093c046bf31aa26411df` |
+| Kujo host runtime | GitHub release `v1.6.0`, Linux x64 | SHA-256 below |
+| Kujo Workcell image runtime | Built by `scripts/prebuild-runtime.sh` | commit `44af277848173664f72ca85f2a1b3b98d634ecdd` |
 
-The Kujo v1.0.0 Linux x64 archive checksum is:
+The Kujo v1.6.0 Linux x64 archive checksum is:
 
 ```text
-77398f60d0f9d29b7ae1351ea234ba7a56ccc1ce6802e2891d7ff0572ac2e52f
+142372a0c89f91ece2017034b71a3e800969ab2cd7b13dd2ee18eb39efac4504
 ```
 
 Do not upgrade any component during deployment. A dependency upgrade requires
@@ -183,17 +183,17 @@ checksum passes:
 
 ```bash
 curl -fL \
-  https://github.com/kujolang/kujo/releases/download/v1.0.0/kujo-v1.0.0-linux-x64.tar.gz \
-  -o /tmp/kujo-v1.0.0-linux-x64.tar.gz
+  https://github.com/kujolang/kujo/releases/download/v1.6.0/kujo-v1.6.0-linux-x64.tar.gz \
+  -o /tmp/kujo-v1.6.0-linux-x64.tar.gz
 printf '%s  %s\n' \
-  '77398f60d0f9d29b7ae1351ea234ba7a56ccc1ce6802e2891d7ff0572ac2e52f' \
-  '/tmp/kujo-v1.0.0-linux-x64.tar.gz' | sha256sum -c -
-tar -xzf /tmp/kujo-v1.0.0-linux-x64.tar.gz -C /usr/local/bin kujo
+  '142372a0c89f91ece2017034b71a3e800969ab2cd7b13dd2ee18eb39efac4504' \
+  '/tmp/kujo-v1.6.0-linux-x64.tar.gz' | sha256sum -c -
+tar -xzf /tmp/kujo-v1.6.0-linux-x64.tar.gz -C /usr/local/bin kujo
 chmod 0755 /usr/local/bin/kujo
 /usr/local/bin/kujo --version
 ```
 
-The final command must print `kujo 1.0.0`.
+The final command must print `kujo 1.6.0`.
 
 ## Phase 5: clone and pin the application
 
@@ -205,15 +205,15 @@ git clone https://github.com/kujolang/workcell.git /opt/workcell
 git clone https://github.com/kujolang/eval.git /opt/eval
 
 git -C /opt/workcell-studio checkout --detach v0.1.0-rc.3
-git -C /opt/workcell checkout --detach 7bcdb7f29ddf74843aec6b70eafbf33cc7944c6f
-git -C /opt/eval checkout --detach 955713f487c094b20b7b8c44414ae17395194cc9
+git -C /opt/workcell checkout --detach e1af7043622d4e22c849d163367dadaba35ad0f1
+git -C /opt/eval checkout --detach 71e66dff780d6930bcbe093c046bf31aa26411df
 
 test "$(git -C /opt/workcell-studio rev-parse HEAD)" = \
   "$(git -C /opt/workcell-studio rev-list -n 1 v0.1.0-rc.3)"
 test "$(git -C /opt/workcell rev-parse HEAD)" = \
-  7bcdb7f29ddf74843aec6b70eafbf33cc7944c6f
+  e1af7043622d4e22c849d163367dadaba35ad0f1
 test "$(git -C /opt/eval rev-parse HEAD)" = \
-  955713f487c094b20b7b8c44414ae17395194cc9
+  71e66dff780d6930bcbe093c046bf31aa26411df
 
 cd /opt/workcell-studio
 npm ci
@@ -238,7 +238,7 @@ KUJO_BIN=/usr/local/bin/kujo \
 
 Required results:
 
-- Pinned image prints `kujo 1.0.0`.
+- Pinned image prints `kujo 1.6.0`.
 - Twenty-six repository tests pass.
 - The real Workcell failure/repair smoke passes.
 - Kujo Eval passes ten checks and verifies its manifest.
