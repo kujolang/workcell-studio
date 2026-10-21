@@ -38,7 +38,7 @@ Use these exact public sources and revisions:
 
 | Component | Source | Revision |
 | --- | --- | --- |
-| Studio | `https://github.com/kujolang/workcell-studio.git` | immutable tag `v0.1.0-rc.3` |
+| Studio | `https://github.com/kujolang/workcell-studio.git` | qualified commit `73d6d5275b25b59e34b2a083f327ce06d89014d9` |
 | Workcell | `https://github.com/kujolang/workcell.git` | `e1af7043622d4e22c849d163367dadaba35ad0f1` |
 | Eval | `https://github.com/kujolang/eval.git` | `71e66dff780d6930bcbe093c046bf31aa26411df` |
 | Kujo host runtime | GitHub release `v1.6.0`, Linux x64 | SHA-256 below |
@@ -204,12 +204,12 @@ git clone https://github.com/kujolang/workcell-studio.git /opt/workcell-studio
 git clone https://github.com/kujolang/workcell.git /opt/workcell
 git clone https://github.com/kujolang/eval.git /opt/eval
 
-git -C /opt/workcell-studio checkout --detach v0.1.0-rc.3
+git -C /opt/workcell-studio checkout --detach 73d6d5275b25b59e34b2a083f327ce06d89014d9
 git -C /opt/workcell checkout --detach e1af7043622d4e22c849d163367dadaba35ad0f1
 git -C /opt/eval checkout --detach 71e66dff780d6930bcbe093c046bf31aa26411df
 
 test "$(git -C /opt/workcell-studio rev-parse HEAD)" = \
-  "$(git -C /opt/workcell-studio rev-list -n 1 v0.1.0-rc.3)"
+  "$(git -C /opt/workcell-studio rev-list -n 1 73d6d5275b25b59e34b2a083f327ce06d89014d9)"
 test "$(git -C /opt/workcell rev-parse HEAD)" = \
   e1af7043622d4e22c849d163367dadaba35ad0f1
 test "$(git -C /opt/eval rev-parse HEAD)" = \
