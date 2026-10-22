@@ -1,5 +1,9 @@
 # Kujo Workcell Studio
 
+Release candidate **0.1.0-rc.4** retains the prerelease boundary. Source release
+verification does not itself deploy a public service or submit the historical
+challenge entry.
+
 A WebMCP-native workspace where humans and browser agents build and verify
 software together inside bounded Kujo Workcells.
 
@@ -28,7 +32,7 @@ trail the human can inspect.
 - Create one of three small, session-isolated Kujo projects.
 - Inspect and edit the same live workspace through the UI or 16 focused WebMCP
   tools.
-- Execute the project in the real Workcell 1.0 Docker harness with network
+- Execute the project in the real Workcell 1.3 Docker harness with network
   disabled, bounded resources, a disposable Git worktree, declared artifacts,
   automatic cleanup, structured receipt, patch, and integrity manifest.
 - Run real Kujo Eval checks against exported artifacts.
@@ -38,7 +42,7 @@ trail the human can inspect.
 
 ## Quick start
 
-Requirements: Node 24.22.1, Kujo 1.6.0, Git, `jq`, Docker, the sibling
+Requirements: patched Node 22.23.4, 24.22.1, or 26.12.1 (and newer supported patches), Kujo 1.6.0, Git, `jq`, Docker, the sibling
 `kujolang/workcell` and `kujolang/eval` checkouts.
 
 ```bash
