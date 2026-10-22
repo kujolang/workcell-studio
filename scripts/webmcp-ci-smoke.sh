@@ -29,8 +29,13 @@ google-chrome --headless --no-first-run --no-default-browser-check \
   --remote-debugging-port=9333 --user-data-dir="$DATA_ROOT/chrome" \
   http://127.0.0.1:4173 >"$DATA_ROOT/chrome.log" 2>&1 &
 CHROME_PID=$!
-for _ in $(seq 1 50); do
+for _ in $(seq 1 600); do
+  if ! kill -0 "$CHROME_PID" 2>/dev/null; then
+    echo "Chrome exited before its debugging endpoint was ready" >&2
+    exit 1
+  fi
   if curl -fsS http://127.0.0.1:9333/json/list | jq -e 'any(.[]; .url | startswith("http://127.0.0.1:4173"))' >/dev/null; then break; fi
   sleep 0.2
 done
+curl -fsS http://127.0.0.1:9333/json/list | jq -e 'any(.[]; .url | startswith("http://127.0.0.1:4173"))' >/dev/null
 timeout 240 npm run webmcp:smoke
