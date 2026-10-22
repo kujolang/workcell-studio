@@ -48,6 +48,7 @@ await new Promise((resolve, reject) => {
 await command("WebMCP.enable");
 for (let attempt = 0; attempt < 50 && !tools; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 20));
 if (!tools?.length) throw new Error("WebMCP tools were not discovered");
+if (tools.length !== 16) throw new Error(`Expected 16 Studio tools, discovered ${tools.length}`);
 const frameId = tools[0].frameId;
 
 const invoke = async (toolName, input) => {
@@ -93,6 +94,10 @@ const secondRun = await pollRun(projectId, secondStart.run_id);
 const secondEvalStart = await invoke("run_eval", { project_id: projectId, run_id: secondStart.run_id });
 const secondEval = await pollEval(projectId, secondStart.run_id, secondEvalStart.eval_id);
 const verified = await invoke("verify_run", { project_id: projectId, run_id: secondStart.run_id, eval_id: secondEvalStart.eval_id });
+if (!policy.ok || firstRun.exit_category !== "completed" || secondRun.exit_category !== "completed"
+  || secondEval.report.status !== "passed" || !verified.evidence_verified || !verified.eval_manifest_verified) {
+  throw new Error("Real WebMCP failure-repair workflow did not produce verified passing evidence");
+}
 
 console.log(JSON.stringify({
   tools: tools.length,

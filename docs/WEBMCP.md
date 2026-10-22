@@ -55,6 +55,13 @@ DevTools on port 9333, open `http://127.0.0.1:4173`, and run:
 npm run webmcp:smoke
 ```
 
+CI runs this same scenario through `scripts/webmcp-ci-smoke.sh`, using the
+runner's Chrome with WebMCP testing enabled and the real pinned Workcell image.
+The job records the browser version and fails unless both executions complete,
+the repaired Eval passes, and both evidence manifests verify. It removes its
+temporary browser profile and Studio data on exit. This checks the browser/API
+integration; it does not certify a public deployment or replace human UI review.
+
 The scenario discovers all 16 tools through Chrome's WebMCP protocol, creates a
 project, reads it, inspects policy, observes the intended failed Eval, patches
 the bug, reruns Workcell and Eval, and verifies both manifests. On 2026-08-26,

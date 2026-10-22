@@ -63,6 +63,9 @@ jobs:
       - name: Run Kujo ShipCheck gate
         run: npm run shipcheck
         working-directory: workcell-studio
+      - name: Run real Chrome WebMCP failure-repair-verification smoke
+        run: bash scripts/webmcp-ci-smoke.sh
+        working-directory: workcell-studio
       - name: Static contract checks
         working-directory: workcell-studio
         run: |
