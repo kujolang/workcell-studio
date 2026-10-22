@@ -7,7 +7,7 @@ let sequence = 0;
 const commandWaiters = new Map();
 const invocationWaiters = new Map();
 const earlyInvocations = new Map();
-let tools;
+const discoveredTools = new Map();
 
 const command = (method, params = {}) => new Promise((resolve, reject) => {
   const id = ++sequence;
@@ -31,7 +31,9 @@ socket.onmessage = (event) => {
     commandWaiters.delete(message.id);
     return message.error ? waiter.reject(new Error(message.error.message)) : waiter.resolve(message.result);
   }
-  if (message.method === "WebMCP.toolsAdded") tools = message.params.tools;
+  if (message.method === "WebMCP.toolsAdded") {
+    for (const tool of message.params.tools) discoveredTools.set(JSON.stringify(tool), tool);
+  }
   if (message.method === "WebMCP.toolResponded") {
     const result = message.params;
     const waiter = invocationWaiters.get(result.invocationId);
@@ -46,8 +48,9 @@ await new Promise((resolve, reject) => {
   socket.onerror = reject;
 });
 await command("WebMCP.enable");
-for (let attempt = 0; attempt < 50 && !tools; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 20));
-if (!tools?.length) throw new Error("WebMCP tools were not discovered");
+for (let attempt = 0; attempt < 250 && discoveredTools.size < 16; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+const tools = [...discoveredTools.values()];
+if (!tools.length) throw new Error("WebMCP tools were not discovered");
 if (tools.length !== 16) throw new Error(`Expected 16 Studio tools, discovered ${tools.length}`);
 const frameId = tools[0].frameId;
 
