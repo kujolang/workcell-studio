@@ -19,26 +19,26 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: kujolang/kujo
-          ref: v1.0.0
+          ref: 44af277848173664f72ca85f2a1b3b98d634ecdd # Kujo 1.6.0
           path: kujo
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: kujolang/workcell
-          ref: v1.0.0
+          ref: 189d7ab6e975301a0e5100b65e8ad3fe4a584573 # Workcell 1.3.0
           path: workcell
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: kujolang/eval
-          ref: v1.0.0
+          ref: 71e66dff780d6930bcbe093c046bf31aa26411df
           path: eval
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: kujolang/shipcheck
-          ref: v1.0.0
+          ref: 7eedd9e02d8730d65e06e16f4984d909d23539bc # ShipCheck 1.0.2
           path: shipcheck
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24.22.1
+          node-version: 26.12.1
       - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable 2026-08-26
       - name: Build pinned Kujo runtime
         run: cargo build --release --locked
