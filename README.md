@@ -1,5 +1,9 @@
 # Kujo Workcell Studio
 
+[![Version](https://img.shields.io/badge/version-0.1.0--rc.4-black)](https://github.com/kujolang/workcell-studio)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+[![built for Kujo](https://img.shields.io/badge/built%20for-Kujo-white.svg)](https://github.com/kujolang/kujo)
+
 Release candidate **0.1.0-rc.4** retains the prerelease boundary. Source release
 verification does not itself deploy a public service or submit the historical
 challenge entry.
